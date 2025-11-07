@@ -1,0 +1,21 @@
+---
+title: "My Metaweb Package Tutorial"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Metaweb Package Tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+library(Metaweb)
+```
+
+
+Load the interaction data from the package 
+
+```{r}
+data <- read.csv(system.file("extdata", "size_barnes2008_FF.csv", package = "Metaweb"), sep = ",", dec = ".")  # adjust sep/dec if needed
+head(data)
+```
+

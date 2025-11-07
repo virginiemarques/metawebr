@@ -1,0 +1,21 @@
+Package: Metaweb
+Type: Package
+Title: Metaweb
+Version: 0.1.0
+Authors@R: person(
+    "Virginie", "Marques",
+    role = c("aut", "cre"),
+    email = "virginie.mmarques@usys.ethz.ch",
+    comment = c(ORCID = "0000-0002-5142-4191")
+  )
+Description: Tools to help build a metaweb and compute local indices of network property
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+Depends: 
+    R (>= 3.5)
+RoxygenNote: 7.3.3
