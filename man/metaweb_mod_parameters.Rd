@@ -5,7 +5,7 @@
 \title{Title: metaweb_mod_parameters}
 \usage{
 metaweb_mod_parameters(
-  data_path = "inst/extdata/size_barnes2008_FF.csv",
+  data_path = NULL,
   path_par_output = NULL,
   observation_resample = 50
 )

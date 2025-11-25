@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_proba.R
 \name{correct_metaweb_proba}
 \alias{correct_metaweb_proba}
-\title{Title: correct_proba}
+\title{Title: correct_metaweb_proba}
 \usage{
 correct_metaweb_proba(MW, df_traits)
 }
@@ -18,7 +18,7 @@ Description of the object that the function returns.
 If the function doesn't return anything meaningful, you can say `NULL`.
 }
 \description{
-Title: correct_proba
+Title: correct_metaweb_proba
 }
 \details{
 correct the metaweb based on the proba

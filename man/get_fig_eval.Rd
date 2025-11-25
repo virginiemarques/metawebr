@@ -4,7 +4,7 @@
 \alias{get_fig_eval}
 \title{Title: get_fig_eval}
 \usage{
-get_fig_eval(data = data_end, target_sp = "Zeus faber", pars = pars)
+get_fig_eval(data, target_sp = "Zeus faber", pars)
 }
 \arguments{
 \item{x}{Description of the first parameter.}

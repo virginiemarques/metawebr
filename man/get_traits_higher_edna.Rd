@@ -2,11 +2,11 @@
 % Please edit documentation in R/get_traits.R
 \name{get_traits_higher_edna}
 \alias{get_traits_higher_edna}
-\title{Title: get_traits}
+\title{Title: get_traits_higher_edna}
 \usage{
 get_traits_higher_edna(
   data_presence,
-  column_species = "species",
+  column_species = "Species",
   column_taxon = "taxon"
 )
 }
