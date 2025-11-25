@@ -17,9 +17,9 @@
 #'
 #' @examples
 #'
-#'
-#' @import dplyr
-#' @import tidyr
+#' @importFrom magrittr %>%
+#' @importFrom dplyr group_by across summarise mutate all_of
+#' @importFrom tidyr pivot_wider
 #'
 #' @export
 

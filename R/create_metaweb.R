@@ -67,9 +67,6 @@ apply_model_metaweb <- function(data_traits,
 #' @examples
 #'
 #'
-#' @import
-#'
-#'
 
 pLMFitted = function(MPrey,MPred,Pars) {
   with(Pars, {

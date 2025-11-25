@@ -1,4 +1,4 @@
-#' Title: correct_proba
+#' Title: correct_metaweb_proba
 #'
 #' correct the metaweb based on the proba
 #'
@@ -18,7 +18,6 @@
 #' @examples
 #'
 #'
-#' @import NetIndices
 #'
 #' @export
 
@@ -55,7 +54,7 @@ correct_metaweb_proba <- function(MW, df_traits){
 #' @examples
 #'
 #'
-#' @import NetIndices
+#' @importFrom NetIndices TrophInd
 #'
 #' @export
 
