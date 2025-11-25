@@ -17,11 +17,10 @@
 #'
 #' @examples
 #'
+#' @importFrom parallel mclapply
+#' @importFrom NetIndices TrophInd
+#' @importFrom igraph graph.adjacency cluster_walktrap modularity diameter degree closeness articulation.points transitivity graph.coreness average.path.length shortest.paths distances
 #'
-#' @import NetIndices
-#' @import igraph
-#' @import gtools
-#' @import parallel
 #'
 #' @export
 

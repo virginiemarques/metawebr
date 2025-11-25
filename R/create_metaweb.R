@@ -17,9 +17,6 @@
 #'
 #' @examples
 #'
-#'
-#' @import dplyr
-#'
 #' @export
 #'
 apply_model_metaweb <- function(data_traits,

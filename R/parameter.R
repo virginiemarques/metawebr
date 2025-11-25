@@ -17,14 +17,20 @@
 #'
 #' @examples
 #'
-#'
-#' @import GenSA
+#' @importFrom GenSA GenSA
 #'
 #' @export
 
-metaweb_mod_parameters <- function(data_path = "inst/extdata/size_barnes2008_FF.csv", path_par_output=NULL, observation_resample=50){
+metaweb_mod_parameters <- function(data_path = NULL, path_par_output=NULL, observation_resample=50){
   # start
-  data_end <- read.csv2(data_path,dec=".",sep=",") # 34 932 in original (l) - here 5847
+  if(is.null(data_path)){
+    data("df_interaction_fish")
+    data_end <- df_interaction_fish
+  } else {
+    data_end <- read.csv(data_path)
+    # data_end <- read.csv2(data_path,dec=".",sep=",") # 34 932 in original (l) - here 5847
+  }
+
   MPred <- log10(data_end$standardised_predator_length)
   MPrey <- log10(data_end$si_prey_length)
 
@@ -74,16 +80,16 @@ metaweb_mod_parameters <- function(data_path = "inst/extdata/size_barnes2008_FF.
   ### **Maximum likelihood estimation**
 
   # Model from the model_genSA script
-  estim.pars = GenSA::GenSA(par = pars, fn = model, lower = par_lo, upper= par_hi, control = list(verbose =TRUE, max.time = 1000, smooth=FALSE), data = data) #Search for parameters maximizing the posteriori probability of these observed interactions
+  estim.pars <- GenSA::GenSA(par = pars, fn = model, lower = par_lo, upper= par_hi, control = list(verbose =TRUE, max.time = 1000, smooth=FALSE), data = data) #Search for parameters maximizing the posteriori probability of these observed interactions
 
   # Save model parameter - unless output path is null
   if(!is.null(path_par_output)){
-    write.table(estim.pars$par,file=path_par_output)
+    write.table(estim.pars$par, file = path_par_output)
   }
 
   # Return list
   return(
-    list(calibration_data=data.frame(pars),
+    list(calibration_data = data.frame(pars),
          calibrated_data = estim.pars$par)
   )
 }

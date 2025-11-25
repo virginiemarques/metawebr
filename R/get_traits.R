@@ -58,7 +58,7 @@ get_traits <- function(data_presence, column_species = "species"){
   return(data_traits_completed)
 }
 
-#' Title: get_traits
+#' Title: get_traits_higher_edna
 #'
 #' Find the parameter for the metaweb - for both species and genus-level here
 #'
@@ -91,7 +91,7 @@ get_traits <- function(data_presence, column_species = "species"){
 #'
 
 
-get_traits_higher_edna <- function(data_presence, column_species = "species", column_taxon = "taxon"){
+get_traits_higher_edna <- function(data_presence, column_species = "Species", column_taxon = "taxon"){
 
   # Get all fishbase - first fetch all species names
   all_fishbase <- rfishbase::load_taxa()
@@ -122,14 +122,14 @@ get_traits_higher_edna <- function(data_presence, column_species = "species", co
   data_traits_taxon <- data_traits_taxon |>
                             filter(!(taxon %in% data_traits_species[,1]))
 
-  # Add a test here
+  # Species-level
   data_traits_completed_species <- data_traits_species |>
-    left_join(info_fishbase, by = setNames("Species", column_species)) |>
+    left_join(info_fishbase, by = c("species" = "Species")) |>
     dplyr::select(-Genus)
-  rownames(data_traits_completed_species) <- data_traits_completed_species[,column_species]
+  rownames(data_traits_completed_species) <- data_traits_completed_species[,"species"]
   colnames(data_traits_completed_species)[1] <- "taxon"
 
-
+  # Taxon-level (genus)
   data_traits_completed_genus <- info_fishbase %>%
     semi_join(data_traits_taxon, by = c("Genus" = "taxon")) %>%
     group_by(Genus) %>%

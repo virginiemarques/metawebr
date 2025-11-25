@@ -19,7 +19,6 @@
 #'
 #'
 #' @import GenSA
-#' @import parallel
 #'
 #' @export
 #'
@@ -147,7 +146,7 @@ correct_metaweb_fish <- function(data_meta,
 #' Description of the object that the function returns.
 #' If the function doesn't return anything meaningful, you can say `NULL`.
 #'
-#' @import parallel
+#' @importFrom parallel mclapply
 #'
 #' @examples
 #'
