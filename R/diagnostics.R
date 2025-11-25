@@ -44,8 +44,8 @@ get_fig_eval <- function(data,target_sp = "Zeus faber",pars) {
   target_size = mean(log10(data$standardised_predator_length[data$predator == target_sp])) #taille moyenne du pred
   legend("topleft", legend=c("Observed preys", "All preys", "Predicted preys"), fill=c(col_target, col_prey, "black"), cex=1)
 
-  o = pars[[1]] + pars[[2]]*target_size
-  r = pars[[3]] + pars[[4]]*target_size
+  o = pars[1,] + pars[2,]*target_size
+  r = pars[3,] + pars[4,]*target_size
   seqM = seq(min(MPrey)-0.5,max(MPrey),0.01)
   pLM = exp(-(o-seqM)^2/2/r^2)
   lines(seqM,0.2*pLM,lwd = 2) #proba d'intération pour cette taille moyenne de prédateur
@@ -56,8 +56,8 @@ get_fig_eval <- function(data,target_sp = "Zeus faber",pars) {
   XY = expand.grid(seqX,seqY)
 
   # Optimum and range
-  o = pars[[1]] + pars[[2]]*XY[,1]
-  r = pars[[3]] + pars[[4]]*XY[,1]
+  o = pars[1,] + pars[2,]*XY[,1]
+  r = pars[3,] + pars[4,]*XY[,1]
 
   # Compute the conditional
   pLM = exp(-(o-XY[,2])^2/2/r^2)
