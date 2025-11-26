@@ -22,9 +22,6 @@
 #' @export
 #'
 
-MW <- adjency_matrix_corrected_0.8
-
-
 plot_tree_network <- function(MW){
 
   # Define the colors
