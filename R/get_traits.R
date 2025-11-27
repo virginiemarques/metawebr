@@ -23,8 +23,11 @@
 #' @examples
 #'
 #'
-#' @import rfishbase
 #' @import dplyr
+#' 
+#' @importFrom rfishbase load_taxa estimate species
+#' @importFrom dplyr left_join mutate select distinct filter
+#' @importFrom rlang sym
 #'
 #' @export
 #'
@@ -47,7 +50,7 @@ get_traits <- function(data_presence, column_species = "species"){
 
   # Intersect with data_presence
   data_traits <- data.frame(species = data_presence[,column_species])
-  data_traits <- data_traits |>   distinct(!!sym(column_species)) |> filter(!!sym(column_species) != "")
+  data_traits <- data_traits |> distinct(!!sym(column_species)) |> filter(!!sym(column_species) != "")
   # Add a test here
 
   data_traits_completed <- data_traits |>
@@ -82,10 +85,9 @@ get_traits <- function(data_presence, column_species = "species"){
 #'
 #' @examples
 #'
-#'
-#' @import rfishbase
-#' @import dplyr
-#' @import stringr
+#' @importFrom rfishbase load_taxa estimate species
+#' @importFrom dplyr left_join mutate select distinct filter
+#' @importFrom stringr word
 #'
 #' @export
 #'

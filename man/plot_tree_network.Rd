@@ -4,7 +4,7 @@
 \alias{plot_tree_network}
 \title{Title: plot_tree_network}
 \usage{
-plot_tree_network(MW)
+plot_tree_network(MW, sp_to_keep = NULL)
 }
 \arguments{
 \item{x}{Description of the first parameter.}

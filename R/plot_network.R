@@ -17,12 +17,18 @@
 #'
 #' @examples
 #'
-#' @importFrom ggraph ggraph geom_edge_link geom_node_point geom_node_text theme_graph graph_from_adjacency_matrix
+#' @importFrom ggraph ggraph geom_edge_link geom_node_point geom_node_text theme_graph
+#' @importFrom igraph graph_from_adjacency_matrix
 #' @importFrom NetIndices TrophInd
 #' @export
 #'
 
-plot_tree_network <- function(MW){
+plot_tree_network <- function(MW, sp_to_keep = NULL){
+
+  MW_full <- MW
+  if(!is.null(sp_to_keep)){
+    MW <- filter_adjacency(MW, sp_to_keep)
+  }
 
   # Define the colors
   cols_troph <- c(
@@ -35,8 +41,8 @@ plot_tree_network <- function(MW){
   names(cols_troph) <- c("1", "2", "3", "4", "5")
 
   # Create layout matrix
-  Troph <- TrophInd(Flow = MW,
-                    Tij = t(MW))
+  Troph <- TrophInd(Flow = MW_full,
+                    Tij = t(MW_full))
 
   graph <- graph_from_adjacency_matrix(data.matrix(MW),weighted=TRUE)
 
@@ -57,4 +63,33 @@ plot_tree_network <- function(MW){
     scale_fill_manual(values = cols_troph)
 
 
+}
+
+
+#' Title: filter_adjacency
+#'
+#' Helper function for the plot_network
+#'
+#' @description
+#'
+#'
+#' @param x Description of the first parameter.
+#' @param y Description of the second parameter (if applicable).
+#' @param ... Other optional parameters passed to methods.
+#'
+#' @details
+#'
+#' @return
+#' Description of the object that the function returns.
+#' If the function doesn't return anything meaningful, you can say `NULL`.
+#'
+#' @examples
+#'
+#'
+
+filter_adjacency <- function(adj_matrix, keep_vec) {
+  keep_vec <- c(keep_vec, c("PrimaryProducer", "SecondaryProducer"))
+  keep <- intersect(keep_vec, rownames(adj_matrix))
+  adj_matrix_filtered <- adj_matrix[keep, keep, drop = FALSE]
+  return(adj_matrix_filtered)
 }

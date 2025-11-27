@@ -18,16 +18,14 @@
 #'
 #' @examples
 #'
-#'
-#' @import dplyr
+#' @importFrom magrittr %>%
+#' @importFrom dplyr mutate case_when distinct group_by summarise left_join arrange slice select ungroup
 #'
 #' @export
 #'
 clean_traits <- function(data_traits,
                          data_presence=NULL,
                          TL_clean=FALSE){
-
-  require(dplyr)
 
   message("There is ", sum(is.na(data_traits$CommonLengthEstim)), " missing values for CL out of ", nrow(data_traits))
   message("There is ", sum(is.na(data_traits$TrophicLevel)), " missing values for TL out of ", nrow(data_traits))
@@ -93,7 +91,8 @@ clean_traits <- function(data_traits,
 #' @examples
 #'
 #'
-#' @import dplyr
+#' @importFrom magrittr %>%
+#' @importFrom dplyr mutate case_when distinct group_by summarise left_join arrange slice select ungroup
 #'
 #' @export
 #'

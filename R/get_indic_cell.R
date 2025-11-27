@@ -1,4 +1,4 @@
-#' Title: metaweb_mod_parameters
+#' Title: get_indic_cells
 #'
 #' Find the parameter for the metaweb
 #'
@@ -18,8 +18,6 @@
 #' @examples
 #'
 #' @importFrom parallel mclapply
-#' @importFrom NetIndices TrophInd
-#' @importFrom igraph graph.adjacency cluster_walktrap modularity diameter degree closeness articulation.points transitivity graph.coreness average.path.length shortest.paths distances
 #'
 #'
 #' @export
@@ -33,7 +31,7 @@ get_indic_cells <- function(P_A_data, Lniche, mc.cores=1) {
     Calc_indic_proba(x=Lniche[Names,Names])
   })
   reseau_cell
-} # get_indic_cells
+}
 
 
 #' Title: Calc_indic_proba
@@ -56,9 +54,6 @@ get_indic_cells <- function(P_A_data, Lniche, mc.cores=1) {
 #' @examples
 #'
 #'
-#' @import NetIndices
-#' @import igraph
-#' @import gtools
 #'
 #'
 # Helper function
@@ -88,9 +83,7 @@ Calc_indic_proba  <- function(x=reseau_cell[[1]], bin_threshold=1) {
 
 #' Title: get_binary_indic
 #'
-#' @import NetIndices
-#' @import igraph
-#' @import gtools
+#' @importFrom NetIndices TrophInd
 #'
 #'
 # Helper function
@@ -134,47 +127,12 @@ get_binary_indic <- function(web=mat, S=Species){
 
 #' Title: Calc_indic_igraph
 #'
-#' @import NetIndices
-#' @import igraph
-#' @import gtools
-#'
+#' @importFrom igraph graph.adjacency cluster_walktrap modularity diameter degree closeness articulation.points transitivity graph.coreness average.path.length shortest.paths distances
 #'
 # Helper function
 
 
-# Calc_indic_igraph<- function(web=mat){
-#
-#   web <-  igraph::graph.adjacency(web,weighted=NULL)
-#
-#   Mod <- modularity(walktrap.community(web))
-#   Diam <- diameter(web)
-#
-#   Din <- igraph::degree(web, mode=c("in"))
-#   Din_stat <- c(Din_mean=mean(Din),Din_min = min(Din),Din_max = max(Din))
-#
-#   Dout <- igraph::degree(web, mode=c("out"))
-#   Dout_stat <- c(Dout_mean=mean(Dout),Dout_min = min(Dout),Dout_max = max(Dout))
-#
-#   #Bet <- betweenness(web)
-#   #Bet_stat <- c(Betweenness_mean=mean(Bet),Betweenness_min = min(Bet),Betweenness_max = max(Bet))
-#
-#   Clos <- closeness(web,normalized = F)
-#   Clos_stat <- c(Closeness_mean=mean(Clos, na.rm=T),Closeness_min = min(Clos, na.rm=T),Closeness_max = max(Clos, na.rm=T))
-#
-#   Nb_artpt <- length(articulation.points(web))
-#   Trans <-  transitivity(web) # clustering coef
-#
-#   Cor <- graph.coreness(web)
-#   Cor_stat <- c(Coreness_mean=mean(Cor, na.rm=T),Coreness_min=min(Cor, na.rm=T),Coreness_max=max(Cor, na.rm=T))
-#
-#   #Centrality <-  evcent(web)$vector
-#   #c(Modularity=Mod, Diameter= Diam, Din_stat,Dout_stat,Bet_stat,Clos_stat,Nb_articulate_point = Nb_artpt,Transitivity=Trans,Cor_stat)
-#   c(Modularity=Mod,Diameter= Diam, Din_stat,Dout_stat,Clos_stat,Nb_articulate_point = Nb_artpt,Transitivity=Trans,Cor_stat)
-#
-# } # end of function Calc_indic_igraph
-
-
-# Chatgpt's suggestions
+# 
 Calc_indic_igraph <- function(web = mat) {
   web <- igraph::graph.adjacency(web, weighted = NULL)
 
@@ -230,9 +188,7 @@ Calc_indic_igraph <- function(web = mat) {
 
 #' Title: get_path_stats
 #'
-#' @import NetIndices
-#' @import igraph
-#' @import gtools
+#' @importFrom igraph graph.adjacency cluster_walktrap modularity diameter degree closeness articulation.points transitivity graph.coreness average.path.length shortest.paths distances
 #'
 #'
 

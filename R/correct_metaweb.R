@@ -18,8 +18,6 @@
 #' @examples
 #'
 #'
-#' @import GenSA
-#'
 #' @export
 #'
 correct_metaweb_fish <- function(data_meta,
