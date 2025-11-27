@@ -45,21 +45,32 @@ plot_tree_network <- function(MW, sp_to_keep = NULL){
   Troph <- TrophInd(Flow = MW_full,
                     Tij = t(MW_full))
 
+  # Keep Troph of species present in sub-web if provided
+  # if(!is.null(sp_to_keep)){
+  #   sp_to_keep_producers <- c(sp_to_keep, c("PrimaryProducer", "SecondaryProducer"))
+  #   Troph <- Troph[rownames(Troph) %in% sp_to_keep_producers, ]
+  # }
+
   graph <- graph_from_adjacency_matrix(data.matrix(MW),weighted=TRUE)
 
   layout.matrix<-matrix(nrow=length(V(graph)),ncol=2)  # Rows equal to the number of vertices
   layout.matrix[,1]<-runif(length(V(graph))) # randomly assign along x-axis
-  layout.matrix[,2] <- Troph$TL # y-axis value based on trophic level
+
+  # Species names of the graph object to recover order
+  species_vector <- V(graph)$name
+  TL_ordered <- Troph$TL[match(species_vector, rownames(Troph))]
+
+  layout.matrix[,2] <- TL_ordered # y-axis value based on trophic level
 
   Degree_in <- colSums(MW)
   Degree <- colSums(MW) + rowSums(MW)
-  Trophic_Level <- as.character(round(Troph$TL,0))
+  Trophic_Level <- as.character(round(TL_ordered,0))
 
   # Plot
-  ggraph(graph, layout = layout.matrix)+
-    geom_edge_link(aes(edge_alpha = 0.1), edge_colour = "grey66", arrow=arrow(ends="last", angle=20, length=unit(0.15, "inches"), type="closed"), show.legend=F)+
+  ggraph(graph, layout = layout.matrix) +
+    geom_edge_link(aes(edge_alpha = 0.1), edge_colour = "grey66", arrow=arrow(ends="last", angle=20, length=unit(0.15, "inches"), type="closed"), show.legend=F) +
     geom_node_point(aes(fill = Trophic_Level, size = Degree_in), shape = 21) +
-    geom_node_text(aes(label = name), family = "serif", repel="true")+
+    geom_node_text(aes(label = name), family = "serif", repel="true") +
     theme_graph()+
     scale_fill_manual(values = cols_troph)
 
