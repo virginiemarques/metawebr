@@ -172,7 +172,7 @@ Distri_correction  <- function(data,Lniche,mc.cores=4){
       if(a=="bathypelagic"&b=="pelagic-oceanic"|a=="pelagic-oceanic"&b=="bathypelagic"){ f[j] = 0}
       if(a=="bathypelagic"&b=="pelagic-neritic"|a=="pelagic-neritic"&b=="bathypelagic"){ f[j] = 0}
       if(a=="bathypelagic"&b=="reef-associated"|a=="reef-associated"&b=="bathypelagic"){ f[j] = 0}
-      if(a=="bathypelagic"&b=="pelagic"|a=="pelagic"&b=="bathypelagic"){ f[j] = 0}
+      # if(a=="bathypelagic"&b=="pelagic"|a=="pelagic"&b=="bathypelagic"){ f[j] = 0}
       if(a=="pelagic-oceanic"&b=="reef-associated"|a=="reef-associated"&b=="pelagic-oceanic"){f[j] = 0}
       if(a=="pelagic-oceanic"&b=="demersal"|a=="demersal"&b=="pelagic-oceanic"){ f[j] = 0}
       if(a=="pelagic-oceanic"&b=="benthopelagic"|a=="benthopelagic"&b=="pelagic-oceanic"){ f[j] = 0}

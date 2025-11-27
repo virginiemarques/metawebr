@@ -18,7 +18,8 @@
 #' @examples
 #'
 #' @importFrom ggraph ggraph geom_edge_link geom_node_point geom_node_text theme_graph
-#' @importFrom igraph graph_from_adjacency_matrix
+#' @import ggplot2
+#' @importFrom igraph graph_from_adjacency_matrix V
 #' @importFrom NetIndices TrophInd
 #' @export
 #'
