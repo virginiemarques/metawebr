@@ -45,18 +45,12 @@ plot_tree_network <- function(MW, sp_to_keep = NULL){
   Troph <- TrophInd(Flow = MW_full,
                     Tij = t(MW_full))
 
-  # Keep Troph of species present in sub-web if provided
-  # if(!is.null(sp_to_keep)){
-  #   sp_to_keep_producers <- c(sp_to_keep, c("PrimaryProducer", "SecondaryProducer"))
-  #   Troph <- Troph[rownames(Troph) %in% sp_to_keep_producers, ]
-  # }
-
   graph <- graph_from_adjacency_matrix(data.matrix(MW),weighted=TRUE)
 
   layout.matrix<-matrix(nrow=length(V(graph)),ncol=2)  # Rows equal to the number of vertices
   layout.matrix[,1]<-runif(length(V(graph))) # randomly assign along x-axis
 
-  # Species names of the graph object to recover order
+  # Species names of the graph object to recover order and keep only provided species
   species_vector <- V(graph)$name
   TL_ordered <- Troph$TL[match(species_vector, rownames(Troph))]
 
