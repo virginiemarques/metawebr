@@ -18,7 +18,7 @@ Description of the object that the function returns.
 If the function doesn't return anything meaningful, you can say `NULL`.
 }
 \description{
-Title: plot_tree_network
+Create a local web wither from the global metaweb or
 }
 \details{
 Plot network

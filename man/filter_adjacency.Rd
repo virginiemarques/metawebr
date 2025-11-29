@@ -4,7 +4,7 @@
 \alias{filter_adjacency}
 \title{Title: filter_adjacency}
 \usage{
-filter_adjacency(adj_matrix, keep_vec)
+filter_adjacency(adj_matrix, keep_vec, keep_producers = TRUE)
 }
 \arguments{
 \item{x}{Description of the first parameter.}

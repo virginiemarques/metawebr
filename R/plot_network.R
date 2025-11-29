@@ -3,7 +3,7 @@
 #' Plot network
 #'
 #' @description
-#'
+#' Create a local web wither from the global metaweb or
 #'
 #' @param x Description of the first parameter.
 #' @param y Description of the second parameter (if applicable).
@@ -72,6 +72,89 @@ plot_tree_network <- function(MW, sp_to_keep = NULL){
 }
 
 
+#' Title: plot_network_focus_sp
+#'
+#'
+#' @description
+#' Creates a metaweb plot, with the option of having a sub-metaweb by providing a vector and proving species focus vector to only focus on one
+#' several species within that web
+#'
+#' @param MW Global metaweb
+#' @param sp_to_keep Species to keep in the metaweb (species and interactions not in this vector will be removed)
+#' @param sp_focus Focus species where we keep them alongside all species interacting with them
+#' @param order_interaction numeric, number of orders of interaction to keep
+#'
+#'
+#' @return
+#' ggplot
+#'
+#' @importFrom ggraph ggraph geom_edge_link geom_node_point geom_node_text theme_graph
+#' @import ggplot2
+#' @importFrom igraph graph_from_adjacency_matrix V induced_subgraph neighborhood
+#' @importFrom NetIndices TrophInd
+#' @export
+#'
+#'
+
+plot_network_focus_sp <- function(MW, sp_focus, order_interaction = 1, sp_to_keep = NULL){
+
+
+  MW_full <- MW
+  if(!is.null(sp_to_keep)){
+    MW <- filter_adjacency(MW, sp_to_keep)
+  }
+
+  # Define the colors
+  cols_troph <- c(
+    "#F3E79A",  # Level 1
+    "#F9C483",  # Level 2
+    "#ED7C97",  # Level 3
+    "#A653A8",  # Level 4
+    "#704D9E"   # Level 5
+  )
+  names(cols_troph) <- c("1", "2", "3", "4", "5")
+
+  # Create layout matrix
+  Troph <- TrophInd(Flow = MW_full,
+                    Tij = t(MW_full))
+
+  graph <- graph_from_adjacency_matrix(data.matrix(MW),weighted=TRUE)
+
+  # Filtering for the species interacting and prune the igraph object
+  # Direct neighbors of the target species - only the preys (in mode) we can change to other modes if necessary
+  neighbors_list <- unlist(neighborhood(graph, order = order_interaction, nodes = sp_focus, mode = "in"))
+  sp_neighbords <- names(neighbors_list)
+  graph <- induced_subgraph(graph, vids = neighbors_list)
+
+  layout.matrix <- matrix(nrow=length(V(graph)),ncol=2)  # Rows equal to the number of vertices
+  layout.matrix[,1] <- runif(length(V(graph))) # randomly assign along x-axis
+
+  # Species names of the graph object to recover order and keep only provided species
+  species_vector <- V(graph)$name
+  TL_ordered <- Troph$TL[match(species_vector, rownames(Troph))]
+
+  layout.matrix[,2] <- TL_ordered # y-axis value based on trophic level
+  rownames(layout.matrix) <- species_vector # y-axis value based on trophic level
+
+  # Prune the MW for the species retaining in the interactions
+  sub_MW <- filter_adjacency(MW, species_vector, keep_producers = FALSE)
+
+  Degree_in <- colSums(sub_MW)
+  Degree <- colSums(sub_MW) + rowSums(sub_MW)
+  Trophic_Level <- as.character(round(TL_ordered,0))
+
+  # Plot
+  ggraph::ggraph(graph, layout = layout.matrix) +
+    ggraph::geom_edge_link(aes(edge_alpha = 0.1), edge_colour = "grey66", arrow=arrow(ends="last", angle=20, length=unit(0.15, "inches"), type="closed"), show.legend=F) +
+    ggraph::geom_node_point(aes(fill = Trophic_Level, size = Degree_in), shape = 21) +
+    ggraph::geom_node_text(aes(label = name), family = "serif", repel="true") +
+    ggraph::theme_graph()+
+    scale_fill_manual(values = cols_troph)
+
+}
+
+
+
 #' Title: filter_adjacency
 #'
 #' Helper function for the plot_network
@@ -93,8 +176,13 @@ plot_tree_network <- function(MW, sp_to_keep = NULL){
 #'
 #'
 
-filter_adjacency <- function(adj_matrix, keep_vec) {
-  keep_vec <- c(keep_vec, c("PrimaryProducer", "SecondaryProducer"))
+filter_adjacency <- function(adj_matrix, keep_vec, keep_producers = TRUE) {
+
+  # If keep_produces is TRUE, add the producers
+  if (keep_producers) {
+    keep_vec <- c(keep_vec, c("PrimaryProducer", "SecondaryProducer"))
+  }
+
   keep <- intersect(keep_vec, rownames(adj_matrix))
   adj_matrix_filtered <- adj_matrix[keep, keep, drop = FALSE]
   return(adj_matrix_filtered)
