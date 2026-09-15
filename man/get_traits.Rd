@@ -2,24 +2,39 @@
 % Please edit documentation in R/get_traits.R
 \name{get_traits}
 \alias{get_traits}
-\title{Title: get_traits}
+\title{Get fish traits from FishBase}
 \usage{
 get_traits(data_presence, column_species = "species")
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{data_presence}{Data frame with a column of species names, as
+`Genus_species` (spaces are converted to underscores).}
 
-\item{y}{Description of the second parameter (if applicable).}
-
-\item{...}{Other optional parameters passed to methods.}
+\item{column_species}{Name of that column.}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+A data frame with one row per species and species names as row
+  names: a column named after `column_species`, then the three traits.
+  Species not found in FishBase have missing traits, with a warning.
 }
 \description{
-# End goal:
+Downloads from FishBase (with \pkg{rfishbase}) the traits needed to build a
+metaweb, for the species of a presence table:
 }
 \details{
-Find the parameter for the metaweb
+* `CommonLengthEstim`: common length (cm), or 0.6 x maximum length when
+  FishBase has no common length;
+* `TrophicLevel`: FishBase trophic level estimate;
+* `DemersPelag`: position in the water column.
+}
+\examples{
+\dontrun{
+presence <- data.frame(species = c("Gadus_morhua", "Clupea_harengus"))
+get_traits(presence)
+}
+
+}
+\seealso{
+[get_traits_higher_edna()] and [infer_traits()] for genus- or
+  family-level taxa, [clean_traits()] to fill missing values.
 }

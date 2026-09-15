@@ -2,7 +2,7 @@
 % Please edit documentation in R/helpers.R
 \name{make_species_station_matrix}
 \alias{make_species_station_matrix}
-\title{Title: make_species_station_matrix}
+\title{Build a site x taxon matrix from detection data}
 \usage{
 make_species_station_matrix(
   df,
@@ -13,19 +13,28 @@ make_species_station_matrix(
 )
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{df}{Data frame of detections.}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{station_col, species_col, count_col}{Names of the site, taxon and
+(numeric) count columns.}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{convert_binary}{Convert counts to presence (1) / absence (0)?}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+A numeric matrix with sites in rows and taxa, followed by the two
+  producers, in columns. Rows with a missing site or taxon are removed with
+  a warning.
 }
 \description{
-Title: make_species_station_matrix
+Converts long detection data (one row per site, taxon and count, e.g. eDNA
+reads) to a site x taxon matrix, summing counts, and adds the
+`PrimaryProducer` and `SecondaryProducer` columns, present at every site.
 }
-\details{
-Transform from dna to matrix fitted for funtion of p/a, adds primary and secondary producers
+\examples{
+det <- data.frame(station = c("s1", "s1", "s2"),
+                  taxon = c("Gadus_morhua", "Clupea_harengus", "Gadus_morhua"),
+                  reads = c(120, 30, 55))
+make_species_station_matrix(det, station_col = "station",
+                            species_col = "taxon", count_col = "reads")
+
 }

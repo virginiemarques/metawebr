@@ -1,147 +1,153 @@
-#' Title: metaweb_mod_parameters
+#' Calibrate the allometric niche model
 #'
-#' Find the parameter for the metaweb
+#' Estimates the four parameters of the niche model of Gravel et al. (2013)
+#' from observed predator-prey body lengths, by maximum likelihood with
+#' generalized simulated annealing ([GenSA::GenSA()]).
 #'
-#' @description
+#' Before fitting, duplicated records (same predator, prey and lengths) are
+#' removed and each predator-prey pair is randomly down-sampled to at most
+#' `observation_resample` records, so that heavily sampled pairs don't dominate
+#' the fit. Call [set.seed()] first for reproducible results.
 #'
+#' The model: a predator of log10 length \eqn{M} eats prey of log10 length
+#' around \eqn{o = a_0 + a_1 M}, within a Gaussian niche of width
+#' \eqn{r = b_0 + b_1 M}.
 #'
-#' @param x Description of the first parameter.
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
+#' @param data_path `NULL` (default) to use [df_interaction_fish], the path to
+#'   a CSV file, or a data frame. Must contain the columns `predator`, `prey`,
+#'   `standardised_predator_length` and `si_prey_length` (lengths in cm).
+#' @param path_par_output Optional path where the fitted parameters are written
+#'   with [utils::write.table()].
+#' @param observation_resample Maximum number of records kept per
+#'   predator-prey pair.
+#' @param max_time Maximum running time of the optimisation, in seconds.
+#' @param verbose Print the optimisation progress?
 #'
-#' @details
+#' @return A list with
+#'   * `calibration_data`: starting values, from a linear regression of prey
+#'     size on predator size;
+#'   * `calibrated_data`: fitted parameters, a named vector `a0`, `a1`, `b0`, `b1`;
+#'   * `neg_log_likelihood`: value of the objective at the optimum;
+#'   * `n_obs`: number of records used.
 #'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
+#'   The list can be passed directly to [apply_model_metaweb()].
+#'
+#' @references Gravel, D., Poisot, T., Albouy, C., Velez, L. & Mouillot, D.
+#'   (2013). Inferring food web structure from predator-prey body size
+#'   relationships. *Methods in Ecology and Evolution*, 4, 1083-1090.
 #'
 #' @examples
-#'
-#' @importFrom GenSA GenSA
+#' \dontrun{
+#' set.seed(1)
+#' params <- metaweb_mod_parameters(path_par_output = "params_metaweb.txt")
+#' params$calibrated_data
+#' }
 #'
 #' @export
-
-metaweb_mod_parameters <- function(data_path = NULL, path_par_output=NULL, observation_resample=50){
-  # start
-  if(is.null(data_path)){
-    data("df_interaction_fish")
-    data_end <- df_interaction_fish
+metaweb_mod_parameters <- function(data_path = NULL,
+                                   path_par_output = NULL,
+                                   observation_resample = 50,
+                                   max_time = 1000,
+                                   verbose = TRUE) {
+  if (is.null(data_path)) {
+    data_end <- metawebr::df_interaction_fish
+  } else if (is.data.frame(data_path)) {
+    data_end <- data_path
   } else {
     data_end <- read.csv(data_path)
-    # data_end <- read.csv2(data_path,dec=".",sep=",") # 34 932 in original (l) - here 5847
   }
+  check_count(observation_resample, "observation_resample")
+  data <- prepare_calibration_data(data_end, observation_resample)
 
-  MPred <- log10(data_end$standardised_predator_length)
-  MPrey <- log10(data_end$si_prey_length)
-
-  # data with unique observations
-  L <- paste(data_end$predator, data_end$prey, data_end$standardised_predator_length, data_end$si_prey_length)
-  L_u <- unique(L)
-  ind<- c()
-  for (i in 1:nrow(data_end)){
-    a<-paste(data_end$predator[i], data_end$prey[i], data_end$standardised_predator_length[i],data_end$si_prey_length[i])
-    if(is.element(a,L_u)){
-      ind <- c(ind,i)
-      L_u <- L_u[L_u != a]
-    }
-  }
-  data_end_u <- data_end[ind,]
-  MPred_u <- MPred[ind]
-  MPrey_u <- MPrey[ind]
-
-  #Reduce bias of observation : some pair species are over represented:
-  data_end_u_t <- data_end[ind,]
-
-  for (i in unique(data_end_u_t$predator)) {
-    df <- data_end_u_t[data_end_u_t$predator == i, ]
-    preys <- unique(df$prey)
-
-    for (j in preys) {
-      df_ij <- df[df$prey == j,]
-      if (nrow(df_ij) > observation_resample) {
-        r <- sample(df_ij$X,nrow(df[df$prey == j,])-observation_resample )
-        data_end_u_t <- data_end_u_t[-which(is.element(data_end_u_t$X, r)),]
-      }}}
-
-  MPred_u_t <- log10(data_end_u_t$standardised_predator_length)
-  MPrey_u_t <- log10(data_end_u_t$si_prey_length)
-  lm_M_u_t <- lm(MPrey_u_t~MPred_u_t)
-
-  # Calibration - parameters
-  pars <- c(a0 = lm_M_u_t$coefficients[1],a1 = lm_M_u_t$coefficients[2],b0 = sd(lm_M_u_t$residuals),b1 = 0)
-
-  ### Setting the boundaries for the algorithm of parameters estimation.
+  # Starting values from a linear regression
+  fit <- lm(MPrey ~ MPred, data = data)
+  pars <- c(a0 = unname(fit$coefficients[1]), a1 = unname(fit$coefficients[2]),
+            b0 = sd(fit$residuals), b1 = 0)
   par_lo <- c(a0 = -10, a1 = 0, b0 = -10, b1 = -10)
   par_hi <- c(a0 = 10, a1 = 10, b0 = 10, b1 = 10)
 
-  ### Here we define the body size data that we will use to calibrate the model  ###############
-  data <- data.frame(MPrey = MPrey_u_t, MPred = MPred_u_t)
+  # Terms of the likelihood that don't depend on the parameters, computed once
+  mean_prey <- mean(unique(data$MPrey))
+  sd_prey <- sd(unique(data$MPrey))
+  pM <- dnorm(data$MPrey, mean = mean_prey, sd = sd_prey)
 
-  ### **Maximum likelihood estimation**
+  estim <- GenSA::GenSA(par = pars, fn = model, lower = par_lo, upper = par_hi,
+                        control = list(verbose = verbose, max.time = max_time, smooth = FALSE),
+                        data = data, mean_prey = mean_prey, sd_prey = sd_prey, pM = pM)
 
-  # Model from the model_genSA script
-  estim.pars <- GenSA::GenSA(par = pars, fn = model, lower = par_lo, upper= par_hi, control = list(verbose =TRUE, max.time = 1000, smooth=FALSE), data = data) #Search for parameters maximizing the posteriori probability of these observed interactions
-
-  # Save model parameter - unless output path is null
-  if(!is.null(path_par_output)){
-    write.table(estim.pars$par, file = path_par_output)
+  fitted <- setNames(estim$par, c("a0", "a1", "b0", "b1"))
+  if (!is.null(path_par_output)) {
+    write.table(fitted, file = path_par_output)
   }
 
-  # Return list
-  return(
-    list(calibration_data = data.frame(pars),
-         calibrated_data = estim.pars$par)
-  )
+  list(calibration_data = data.frame(pars),
+       calibrated_data = fitted,
+       neg_log_likelihood = estim$value,
+       n_obs = nrow(data))
 }
 
-#' Title: model
-#'
-#' Helper
-#'
-#' @description
-#'
-#'
-#' @param x Description of the first parameter.
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
-#'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
-#'
-#' @examples
-#'
+# Deduplicate and down-sample the interaction records; returns log10 lengths.
+prepare_calibration_data <- function(data_end, observation_resample = 50) {
+  cols <- c("predator", "prey", "standardised_predator_length", "si_prey_length")
+  missing_cols <- setdiff(cols, names(data_end))
+  if (length(missing_cols) > 0) {
+    stop(sprintf("Interaction data is missing column(s): %s.", paste(missing_cols, collapse = ", ")),
+         call. = FALSE)
+  }
 
-model = function(pars,data) {
-  MPred = data$MPred #list of log10 length of observed predator
-  MPrey = data$MPrey
-  a0 = pars[1]
-  a1 = pars[2]
-  b0 = pars[3]
-  b1 = pars[4]
-  meanMprey = mean(unique(MPrey))
-  sdMprey = sd(unique(MPrey))
+  pred_len <- data_end$standardised_predator_length
+  prey_len <- data_end$si_prey_length
+  ok <- is.finite(pred_len) & pred_len > 0 & is.finite(prey_len) & prey_len > 0
+  if (any(!ok)) {
+    warning(sprintf("%d records with a missing or non-positive length were removed.", sum(!ok)),
+            call. = FALSE)
+    data_end <- data_end[ok, , drop = FALSE]
+  }
+
+  # Unique observations (keeps the first occurrence)
+  key <- paste(data_end$predator, data_end$prey,
+               data_end$standardised_predator_length, data_end$si_prey_length)
+  data_u <- data_end[!duplicated(key), , drop = FALSE]
+
+  # Down-sample over-represented predator-prey pairs. Pairs are visited
+  # predator by predator (in order of appearance), then prey by prey.
+  pair <- paste(data_u$predator, data_u$prey, sep = "\r")
+  visit_order <- order(match(data_u$predator, unique(data_u$predator)), seq_along(pair))
+  rows_by_pair <- split(seq_along(pair), factor(pair, levels = unique(pair[visit_order])))
+
+  drop_rows <- unlist(lapply(rows_by_pair, function(idx) {
+    n <- length(idx)
+    if (n > observation_resample) idx[sample.int(n, n - observation_resample)] else NULL
+  }), use.names = FALSE)
+  if (length(drop_rows) > 0) data_u <- data_u[-drop_rows, , drop = FALSE]
+
+  data.frame(MPrey = log10(data_u$si_prey_length),
+             MPred = log10(data_u$standardised_predator_length))
+}
+
+# Negative log-likelihood of the niche model (objective minimised by GenSA).
+# mean_prey, sd_prey and pM don't depend on `pars`; metaweb_mod_parameters()
+# passes them precomputed.
+model <- function(pars, data,
+                  mean_prey = mean(unique(data$MPrey)),
+                  sd_prey = sd(unique(data$MPrey)),
+                  pM = dnorm(data$MPrey, mean = mean_prey, sd = sd_prey)) {
+  MPred <- data$MPred
+  MPrey <- data$MPrey
 
   # Optimum and range
-  o = a0 + a1*MPred
-  r = b0 + b1*MPred
+  o <- pars[1] + pars[2] * MPred
+  r <- pars[3] + pars[4] * MPred
 
-  # Compute the conditional
-  pLM = exp(-(o-MPrey)^2/2/r^2)
+  # Conditional probability of interaction given prey size
+  pLM <- exp(-(o - MPrey)^2 / 2 / r^2)
 
-  # Compute the marginal
-  pM = dnorm(x=MPrey,mean=meanMprey,sd=sdMprey)
+  # Integrated denominator
+  pL <- r / (r^2 + sd_prey^2)^0.5 * exp(-(o - mean_prey)^2 / 2 / (r^2 + sd_prey^2))
 
-  #  Integrate the denominator
-  pL = r/(r^2+sdMprey^2)^0.5*exp(-(o-meanMprey)^2/2/(r^2+sdMprey^2))
+  # Posterior probability
+  pML <- pLM * pM / pL
+  pML[pML <= 0] <- .Machine$double.xmin  # avoid log(0)
 
-  # Compute the posterior probability
-  pML = pLM*pM/pL
-
-  pML[pML<=0] = .Machine$double.xmin # Control to avoid computing issues
-
-  return(-sum(log(pML)))
+  -sum(log(pML))
 }
-

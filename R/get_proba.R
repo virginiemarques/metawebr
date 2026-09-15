@@ -1,103 +1,70 @@
-#' Title: correct_metaweb_proba
+#' Binarise a metaweb
 #'
-#' correct the metaweb based on the proba
+#' Turns interaction probabilities into 0/1 links. By default the threshold is
+#' chosen with [get_proba()].
 #'
-#' @description
+#' @param MW Metaweb of interaction probabilities (prey in rows, predators in
+#'   columns), e.g. from [correct_metaweb_fish()].
+#' @param df_traits Traits with taxon names as row names and a `TrophicLevel`
+#'   column. Not needed when `threshold` is given.
+#' @param threshold Optional probability threshold. `NULL` (default) chooses it
+#'   with [get_proba()].
+#' @param plot_diag Draw the threshold diagnostic plot?
 #'
-#'
-#' @param MW Adjency matrix (or metaweb)
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
-#'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
-#'
-#' @examples
-#'
-#'
+#' @return A 0/1 matrix with the same dimensions as `MW`; links with a
+#'   probability >= threshold are set to 1.
 #'
 #' @export
-
-
-correct_metaweb_proba <- function(MW, df_traits){
-
-  t <- get_proba(MW, df_traits)
-  message(sprintf("Threshold value chosen is %.1f", t))
-
-  MW[MW<t] <- 0
-  MW[MW>=t] <- 1
-
-  return(MW)
+correct_metaweb_proba <- function(MW, df_traits, threshold = NULL, plot_diag = TRUE) {
+  MW <- check_metaweb(MW)
+  if (is.null(threshold)) {
+    threshold <- get_proba(MW, df_traits, plot_diag = plot_diag)
+    message(sprintf("Threshold value chosen is %g", threshold))
+  } else if (!is.numeric(threshold) || length(threshold) != 1 || is.na(threshold) ||
+             threshold < 0 || threshold > 1) {
+    stop("`threshold` must be a single number between 0 and 1.", call. = FALSE)
+  }
+  out <- (MW >= threshold) * 1
+  attr(out, "corrections") <- NULL  # links recorded by correct_metaweb_fish() no longer apply
+  out
 }
 
-
-#' Title: get_proba
+#' Choose the probability threshold of a metaweb
 #'
-#' Find the best proba to validate for the adjency matrix
+#' Tries thresholds from 0.1 to 0.995. For each, the metaweb is binarised, the
+#' trophic level of every taxon is computed from the binary web, and the
+#' absolute differences with the observed trophic levels (`TrophicLevel`, e.g.
+#' from FishBase) are summed. The threshold with the smallest error is returned.
 #'
-#' @description
+#' @inheritParams correct_metaweb_proba
+#' @param df_traits Traits with taxon names as row names and a `TrophicLevel`
+#'   column. Taxa are matched to the metaweb by name.
 #'
-#'
-#' @param MW Adjency matrix (or metaweb)
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
-#'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
-#'
-#' @examples
-#'
-#'
-#' @importFrom NetIndices TrophInd
+#' @return The selected threshold (a single number).
 #'
 #' @export
-
 get_proba <- function(MW, df_traits, plot_diag = TRUE) {
-
-  # Helper function find local minimum
-  find_local_min <- function(df, value_col = "TLm") {
-    if (!value_col %in% names(df)) {
-      stop(paste("Column", value_col, "not found in the data frame"))
-    }
-    min_index <- which.min(df[[value_col]])
-    df[min_index, , drop = FALSE]
+  MW <- check_metaweb(MW)
+  check_traits(df_traits, "TrophicLevel", arg = "df_traits")
+  common <- intersect(rownames(MW), rownames(df_traits)[!is.na(df_traits$TrophicLevel)])
+  if (length(common) == 0) {
+    stop("No taxon of `MW` has a trophic level in `df_traits` (row names must match).", call. = FALSE)
   }
+  observed_tl <- df_traits[common, "TrophicLevel"]
 
-  # Threshold exploration
-  thres <- seq(0.1, 0.975, 0.025)
-  thres <- c(thres, 0.99, 0.995)
-  TLm <- c()
+  thres <- c(seq(0.1, 0.975, 0.025), 0.99, 0.995)
+  rounded <- round(MW, 4)
+  TLm <- vapply(thres, function(th) {
+    inferred <- trophic_levels((rounded >= th) * 1)
+    sum(abs(inferred[common, "TL"] - observed_tl))
+  }, numeric(1))
 
-  for (t in thres) {
-    bin_net <- round(MW, 4)
-    bin_net[bin_net < t]  <- 0
-    bin_net[bin_net >= t] <- 1
-
-    Troph <- NetIndices::TrophInd(Flow = bin_net, Tij = t(bin_net))
-    sp <- which(is.element(rownames(Troph), rownames(df_traits)))
-    TL <- abs(Troph$TL[sp] - df_traits$TrophicLevel[sp])
-    TLm <- c(TLm, sum(TL, na.rm = TRUE))
-  }
-
-  df <- data.frame(TLm, thres)
-  df_min <- find_local_min(df)[,2]
-
-  # Optional plot
+  best <- thres[which.min(TLm)]
   if (isTRUE(plot_diag)) {
-    # Wrap in print to force evaluation in all contexts
-    print(
-      plot(df$thres, df$TLm, pch = 1, xlab = "Binary threshold",
-           ylab = "Sum of (observed TL - inferred TL)")
-    )
-    points(df$thres[which.min(df$TLm)], min(df$TLm), col = "red", pch = 20)
-    abline(h = min(df$TLm), col = "red", lty = 2, lwd = 0.5)
+    plot(thres, TLm, pch = 1, xlab = "Binary threshold",
+         ylab = "Sum of |observed TL - inferred TL|")
+    points(best, min(TLm), col = "red", pch = 20)
+    abline(h = min(TLm), col = "red", lty = 2, lwd = 0.5)
   }
-
-  return(df_min)
+  best
 }

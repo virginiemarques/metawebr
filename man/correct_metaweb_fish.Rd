@@ -2,7 +2,7 @@
 % Please edit documentation in R/correct_metaweb.R
 \name{correct_metaweb_fish}
 \alias{correct_metaweb_fish}
-\title{Title: correct_metaweb_fish}
+\title{Correct a fish metaweb with ecological rules}
 \usage{
 correct_metaweb_fish(
   data_meta,
@@ -15,19 +15,62 @@ correct_metaweb_fish(
 )
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{data_meta}{Metaweb from [apply_model_metaweb()] (prey in rows,
+predators in columns).}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{data_traits}{Traits with taxon names as row names, containing every
+taxon of `data_meta`. Needs `TrophicLevel`, `CommonLengthEstim` (cm) and
+`DemersPelag`, or only those used by the selected corrections. An optional
+logical `Herbivore` column overrides the trophic-level rule for herbivores.}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{herbivory, water_pos, small_fish, PP_SP_add, exception_BigFish}{Logical:
+apply this correction?}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+The corrected matrix. With `PP_SP_add = TRUE` it has two extra rows
+  and columns, `PrimaryProducer` and `SecondaryProducer`.
 }
 \description{
-Title: correct_metaweb_fish
+The body-size model alone predicts some implausible links. This function
+removes or rewires them using the traits of each taxon. Corrections are
+applied in this order:
 }
 \details{
-Correct metaweb based on general ecology
+* `herbivory`: herbivores eat no other taxa. Herbivores are taxa with a
+  trophic level below 2.4, unless `data_traits` has a `Herbivore` column
+  (see [set_herbivores()]). The message lists the taxa treated as
+  herbivores so you can check them.
+* `water_pos`: removes links between taxa living in incompatible parts of
+  the water column (column `DemersPelag`, e.g. bathydemersal vs.
+  pelagic-oceanic), and removes cannibalism.
+* `small_fish`: taxa shorter than 10 cm eat no other taxa.
+* `PP_SP_add`: adds `PrimaryProducer` and `SecondaryProducer` nodes.
+  Herbivores eat primary producers; taxa with a trophic level in (2.4, 3.7]
+  and small fish eat secondary producers; secondary producers eat primary
+  producers and themselves.
+* `exception_BigFish`: taxa longer than 100 cm with a trophic level in
+  (2.4, 3.7), such as large planktivorous sharks, eat only secondary
+  producers. Requires the producer nodes.
+
+Taxa with a missing trait are left untouched by the corrections that use
+it, with a warning.
+
+The correction that changed each link is recorded in the result; see
+[compare_metawebs()] to list the changed links for manual checks.
+}
+\examples{
+traits <- data.frame(
+  CommonLengthEstim = c(100, 30, 5),
+  TrophicLevel = c(4.1, 3.4, 3.3),
+  DemersPelag = c("benthopelagic", "benthopelagic", "benthopelagic"),
+  row.names = c("Gadus_morhua", "Clupea_harengus", "Gasterosteus_aculeatus")
+)
+mw <- apply_model_metaweb(traits, c(-0.56, 0.96, 0.12, 0.14))
+mw_corr <- correct_metaweb_fish(mw, traits)
+compare_metawebs(mw, mw_corr, traits)
+
+}
+\seealso{
+[set_herbivores()] to change which taxa are treated as herbivores,
+  [compare_metawebs()] to check the changed links.
 }

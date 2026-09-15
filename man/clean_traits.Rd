@@ -2,24 +2,40 @@
 % Please edit documentation in R/traits.R
 \name{clean_traits}
 \alias{clean_traits}
-\title{Title: clean_traits}
+\title{Report and fill missing trait values}
 \usage{
-clean_traits(data_traits, data_presence = NULL, TL_clean = FALSE)
+clean_traits(data_traits, fill_by_genus = TRUE, remove_incomplete = TRUE)
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{data_traits}{Traits with taxon names as row names and the columns
+`CommonLengthEstim`, `TrophicLevel` and `DemersPelag`, e.g. from
+[get_traits()].}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{fill_by_genus}{Fill missing values from the same genus?}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{remove_incomplete}{Remove taxa with a missing trait (after filling)?}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+`data_traits`, filled and/or filtered.
 }
 \description{
-Clean trait data. Get common lenght if missing (0.6*TL)
+Reports the number of missing values of each trait. Then, optionally, fills
+missing values from other taxa of the same genus in the table (median length
+and trophic level, most common water position) and removes the taxa that
+still have missing traits. The genus is the part of the row name before the
+first underscore, so a genus-level taxon (`Gadus`) is grouped with its
+species (`Gadus_morhua`).
 }
-\details{
-Clean trait data
+\examples{
+traits <- data.frame(
+  CommonLengthEstim = c(100, NA, 30),
+  TrophicLevel = c(4.1, 3.9, 3.4),
+  DemersPelag = c("benthopelagic", NA, "benthopelagic"),
+  row.names = c("Gadus_morhua", "Gadus_ogac", "Clupea_harengus")
+)
+clean_traits(traits)
+
+}
+\seealso{
+[infer_traits()] to use all FishBase species of a genus or family.
 }

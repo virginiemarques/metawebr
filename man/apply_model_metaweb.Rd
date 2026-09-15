@@ -2,7 +2,7 @@
 % Please edit documentation in R/create_metaweb.R
 \name{apply_model_metaweb}
 \alias{apply_model_metaweb}
-\title{Title: apply_model_metaweb}
+\title{Predict the probability of every trophic interaction}
 \usage{
 apply_model_metaweb(
   data_traits,
@@ -11,17 +11,35 @@ apply_model_metaweb(
 )
 }
 \arguments{
-\item{data_traits}{Dataframe containing trait data (columms...)}
+\item{data_traits}{Data frame with one row per taxon and taxon names as row
+names, as returned by [get_traits()]. Must contain `length_column`.}
 
-\item{path_pars}{Path to parameters dataframe}
+\item{path_pars}{Model parameters (`a0`, `a1`, `b0`, `b1`): the path to a
+file written by [metaweb_mod_parameters()], the list it returns, or a
+numeric vector of length 4.}
+
+\item{length_column}{Name of the column holding body length (cm).}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+A square matrix of interaction probabilities with **prey in rows and
+  predators in columns**: `mw[i, j]` is the probability that taxon `j` eats
+  taxon `i`.
 }
 \description{
-Clean trait data. Get common lenght if missing (0.6*TL)
+Applies the calibrated allometric niche model (Gravel et al. 2013) to every
+pair of taxa in `data_traits`.
 }
-\details{
-Create the metaweb
+\examples{
+traits <- data.frame(
+  CommonLengthEstim = c(100, 30, 5),
+  row.names = c("Gadus_morhua", "Clupea_harengus", "Gasterosteus_aculeatus")
+)
+pars <- c(a0 = -0.56, a1 = 0.96, b0 = 0.12, b1 = 0.14)
+round(apply_model_metaweb(traits, pars), 2)
+
+}
+\references{
+Gravel, D., Poisot, T., Albouy, C., Velez, L. & Mouillot, D.
+  (2013). Inferring food web structure from predator-prey body size
+  relationships. *Methods in Ecology and Evolution*, 4, 1083-1090.
 }

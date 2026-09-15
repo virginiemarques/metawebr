@@ -1,82 +1,58 @@
-#' Title: apply_model_metaweb
+#' Predict the probability of every trophic interaction
 #'
-#' Create the metaweb
+#' Applies the calibrated allometric niche model (Gravel et al. 2013) to every
+#' pair of taxa in `data_traits`.
 #'
-#' @description
+#' @param data_traits Data frame with one row per taxon and taxon names as row
+#'   names, as returned by [get_traits()]. Must contain `length_column`.
+#' @param path_pars Model parameters (`a0`, `a1`, `b0`, `b1`): the path to a
+#'   file written by [metaweb_mod_parameters()], the list it returns, or a
+#'   numeric vector of length 4.
+#' @param length_column Name of the column holding body length (cm).
 #'
-#' Clean trait data. Get common lenght if missing (0.6*TL)
+#' @return A square matrix of interaction probabilities with **prey in rows and
+#'   predators in columns**: `mw[i, j]` is the probability that taxon `j` eats
+#'   taxon `i`.
 #'
-#' @param data_traits Dataframe containing trait data (columms...)
-#' @param path_pars Path to parameters dataframe
-#'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
+#' @references Gravel, D., Poisot, T., Albouy, C., Velez, L. & Mouillot, D.
+#'   (2013). Inferring food web structure from predator-prey body size
+#'   relationships. *Methods in Ecology and Evolution*, 4, 1083-1090.
 #'
 #' @examples
+#' traits <- data.frame(
+#'   CommonLengthEstim = c(100, 30, 5),
+#'   row.names = c("Gadus_morhua", "Clupea_harengus", "Gasterosteus_aculeatus")
+#' )
+#' pars <- c(a0 = -0.56, a1 = 0.96, b0 = 0.12, b1 = 0.14)
+#' round(apply_model_metaweb(traits, pars), 2)
 #'
 #' @export
-#'
 apply_model_metaweb <- function(data_traits,
                                 path_pars,
-                                length_column = "CommonLengthEstim"){
+                                length_column = "CommonLengthEstim") {
+  check_traits(data_traits, length_column)
+  pars <- as_pars(path_pars)
 
-  # Check
-  if(identical(rownames(data_traits),seq(1:nrow(data_traits)))){
-    stop("check rownames, should be taxa name")
+  len <- data_traits[[length_column]]
+  if (!is.numeric(len)) {
+    stop(sprintf("Column `%s` must be numeric.", length_column), call. = FALSE)
+  }
+  bad <- is.na(len) | len <= 0
+  if (any(bad)) {
+    stop(sprintf("%d taxa have a missing or non-positive `%s`: %s. Fill or remove them first (see clean_traits()).",
+                 sum(bad), length_column, format_taxa(rownames(data_traits)[bad])),
+         call. = FALSE)
   }
 
-  Size <- log10(data_traits[,length_column])
-  names(Size) <- rownames(data_traits)
-
-  # Expand all pairs of species
-  M <- expand.grid(Size,Size)
-  MPrey <- M[,1]; MPred <- M[,2]
-
-  Names <- expand.grid(names(Size),names(Size))
-  PreyNames <- Names[,1];PredNames <- Names[,2]
-
-  rm(M);rm(Names)
-
-  # Compute interaction probability
-  Pars <- read.table(path_pars)
-  pLM <- pLMFitted(MPrey,MPred,Pars) # function extracted from Model_GenSA.R code
-
-  # Transform into an adgency matrix
-  mw <- matrix(pLM,nr = length(Size), nc = length(Size), byrow = FALSE)
-  colnames(mw)<-rownames(mw)<- names(Size)
-
-  return(mw)
+  size <- setNames(log10(len), rownames(data_traits))
+  outer(size, size, pLMFitted, Pars = pars)
 }
 
-#' Title: pLMFitted
-#'
-#' Helper for above
-#'
-#' @description
-#'
-#'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
-#'
-#' @examples
-#'
-#'
-
-pLMFitted = function(MPrey,MPred,Pars) {
-  with(Pars, {
-    a0 = Pars[1,]; a1= Pars[2,]
-    b0 = Pars[3,]; b1=Pars[4,]
-    o = a0 + a1*MPred
-    #else if(isTemp == 1) o = a0 +(a1 + a2*Temp)*MPred + a3*Temp
-    r = b0 + b1*MPred
-
-    # Compute the conditional pLM for each predator
-    exp(-(o-MPrey)^2/2/r^2)
-  })
+# Conditional probability that a predator of log10 length MPred eats a prey of
+# log10 length MPrey (vectorised).
+pLMFitted <- function(MPrey, MPred, Pars) {
+  Pars <- as_pars(Pars)
+  o <- Pars[["a0"]] + Pars[["a1"]] * MPred   # optimal prey size
+  r <- Pars[["b0"]] + Pars[["b1"]] * MPred   # niche range
+  exp(-(o - MPrey)^2 / 2 / r^2)
 }

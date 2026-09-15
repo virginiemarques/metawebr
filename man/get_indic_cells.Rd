@@ -2,24 +2,65 @@
 % Please edit documentation in R/get_indic_cell.R
 \name{get_indic_cells}
 \alias{get_indic_cells}
-\title{Title: get_indic_cells}
+\title{Compute food-web indices for each site}
 \usage{
-get_indic_cells(P_A_data, Lniche, mc.cores = 1)
+get_indic_cells(
+  P_A_data,
+  Lniche,
+  mc.cores = 1,
+  null_model = c("none", "equiprobable", "frequency"),
+  n_null = 100
+)
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{P_A_data}{Site x taxon matrix with site names as row names and taxon
+names as column names, as returned by [make_species_station_matrix()].
+Values > 0 are presences.}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{Lniche}{Binary metaweb (prey in rows, predators in columns), e.g. from
+[correct_metaweb_proba()].}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{mc.cores}{Number of cores. Values > 1 use forked processes, which are
+not available on Windows.}
+
+\item{null_model}{`"none"` (default) for observed indices only, or a null
+model passed to [get_indic_null()]: `"equiprobable"` or `"frequency"`.}
+
+\item{n_null}{Number of null communities per site, when `null_model` is not
+`"none"`.}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+If `null_model = "none"`, a data frame with one row per site: a
+  `site` column followed by the indices. Otherwise a list with `indices`
+  (that data frame) and `null_model` (the output of [get_indic_null()]).
 }
 \description{
-Title: get_indic_cells
+Extracts the local food web of each site (the sub-network of the metaweb
+formed by the taxa present) and computes network indices for it.
+Optionally compares the indices with null models (see [get_indic_null()]).
 }
 \details{
-Find the parameter for the metaweb
+Taxa of `P_A_data` absent from `Lniche` are dropped with a warning.
+
+Indices:
+* `Species`: number of nodes, producers included. `Connectance_p`: sum of
+  link values / `Species`^2.
+* `Link`, `Link_max`, `Connectance`, `b_power_law`: number of links, nodes^2,
+  their ratio, and \eqn{\log_2 L / (\log_2 S - 1)}.
+* `Ntop`, `Nbas`, `Nint`: fractions of top (no predator, at least one prey),
+  basal (at most one prey) and intermediate taxa, producers excluded.
+* `Vul`, `Vulsd`, `Gen`, `Gensd`: mean and sd of the number of predators
+  (vulnerability) and prey (generality), producers excluded.
+* `TL_moy`, `length_chain`, `Omn_moy`: mean trophic level, maximum trophic
+  level rounded up, mean omnivory index.
+* `Planktivores`, `HTI`, `MTI`: fraction of taxa with a trophic level in
+  (2.4, 3.7), fraction above 4, mean trophic level of taxa above 3.25.
+  Only for webs with more than 50 nodes, otherwise `NA`.
+* `Modularity` (walktrap communities), `Diameter`, `Din_*` / `Dout_*`
+  (in- and out-degree mean, min, max), `Closeness_*`,
+  `Nb_articulate_point`, `Transitivity`, `Coreness_*`.
+* `Mean_path_length` and `Shortest_path_1` to `Shortest_path_5`: mean
+  shortest path and fraction of shortest paths of each length (`NA` when
+  there is none).
+* `redundancy`: not implemented yet, always 0.
 }

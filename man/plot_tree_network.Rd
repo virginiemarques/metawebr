@@ -2,24 +2,23 @@
 % Please edit documentation in R/plot_network.R
 \name{plot_tree_network}
 \alias{plot_tree_network}
-\title{Title: plot_tree_network}
+\title{Plot a food web by trophic level}
 \usage{
 plot_tree_network(MW, sp_to_keep = NULL)
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{MW}{Metaweb, usually binary (prey in rows, predators in columns).}
 
-\item{y}{Description of the second parameter (if applicable).}
-
-\item{...}{Other optional parameters passed to methods.}
+\item{sp_to_keep}{Optional taxa to keep, to plot a local web. The producer
+nodes are always kept.}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+A ggplot object.
 }
 \description{
-Create a local web wither from the global metaweb or
-}
-\details{
-Plot network
+Draws a metaweb, or a local food web, with the height of each node given by
+its trophic level. Trophic levels are computed on the full metaweb, so
+heights are comparable between sub-webs. Nodes are coloured by rounded
+trophic level and sized by number of prey. Horizontal positions are random:
+call [set.seed()] first for a reproducible layout.
 }

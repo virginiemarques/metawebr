@@ -1,164 +1,143 @@
-#' Title: get_traits
+#' Get fish traits from FishBase
 #'
-#' Find the parameter for the metaweb
+#' Downloads from FishBase (with \pkg{rfishbase}) the traits needed to build a
+#' metaweb, for the species of a presence table:
 #'
-#' @description
+#' * `CommonLengthEstim`: common length (cm), or 0.6 x maximum length when
+#'   FishBase has no common length;
+#' * `TrophicLevel`: FishBase trophic level estimate;
+#' * `DemersPelag`: position in the water column.
 #'
-#'# End goal:
-# 1. taxa
-# 2. Common length
-# 3. trophic_level
-# 4. Env_2
+#' @param data_presence Data frame with a column of species names, as
+#'   `Genus_species` (spaces are converted to underscores).
+#' @param column_species Name of that column.
 #'
-#' @param x Description of the first parameter.
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
+#' @return A data frame with one row per species and species names as row
+#'   names: a column named after `column_species`, then the three traits.
+#'   Species not found in FishBase have missing traits, with a warning.
 #'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
+#' @seealso [get_traits_higher_edna()] and [infer_traits()] for genus- or
+#'   family-level taxa, [clean_traits()] to fill missing values.
 #'
 #' @examples
-#'
-#'
-#' @import dplyr
-#' 
-#' @importFrom rfishbase load_taxa estimate species
-#' @importFrom dplyr left_join mutate select distinct filter
-#' @importFrom rlang sym
+#' \dontrun{
+#' presence <- data.frame(species = c("Gadus_morhua", "Clupea_harengus"))
+#' get_traits(presence)
+#' }
 #'
 #' @export
-#'
+get_traits <- function(data_presence, column_species = "species") {
+  species <- presence_taxa(data_presence, column_species)
+  info <- fishbase_traits_table()
 
-get_traits <- function(data_presence, column_species = "species"){
+  idx <- match(species, info$Species)
+  warn_not_found(species[is.na(idx)])
 
-  # Get all fishbase - first fetch all species names
-  all_fishbase <- rfishbase::load_taxa()
-  # Then get info on species table
-  estimate_table <- rfishbase::estimate()
-  species_table <- rfishbase::species() # Env_2 = DemersPelag
-  info_fishbase <- species_table |>
-    left_join(all_fishbase[,c("SpecCode", "Species")], by = c("SpecCode")) |>
-    # Add estimate table
-    left_join(estimate_table[,c("SpecCode", "Troph")]) |>
-    # Add a common_length_estimated with 0.60 of length if NA
-    mutate(CommonLengthEstim = ifelse(is.na(CommonLength), 0.6*Length, CommonLength)) |>
-    mutate(Species = gsub(" ", "_", Species)) |>
-    dplyr::select(Species, CommonLengthEstim, TrophicLevel = Troph, DemersPelag)
-
-  # Intersect with data_presence
-  data_traits <- data.frame(species = data_presence[,column_species])
-  data_traits <- data_traits |> distinct(!!sym(column_species)) |> filter(!!sym(column_species) != "")
-  # Add a test here
-
-  data_traits_completed <- data_traits |>
-    left_join(info_fishbase, by = setNames("Species", column_species))
-
-  rownames(data_traits_completed) <- data_traits_completed[,column_species]
-
-  return(data_traits_completed)
+  out <- data.frame(species, info[idx, c("CommonLengthEstim", "TrophicLevel", "DemersPelag")],
+                    row.names = species)
+  names(out)[1] <- column_species
+  out
 }
 
-#' Title: get_traits_higher_edna
+#' Get fish traits for species- and genus-level eDNA assignments
 #'
-#' Find the parameter for the metaweb - for both species and genus-level here
+#' Like [get_traits()], for eDNA data where some sequences are assigned to a
+#' species and others only to a genus. Species get their FishBase traits;
+#' genera get the mean length and trophic level, and the most common water
+#' position, of all FishBase species of the genus.
 #'
-#' @description
+#' @param data_presence Data frame of detections.
+#' @param column_species Column with species-level assignments (`Genus_species`).
+#' @param column_taxon Column with the assigned taxon (species or genus). Taxa
+#'   that are not already in `column_species` are treated as genera.
 #'
-#'# End goal:
-# 1. taxa
-# 2. Common length
-# 3. trophic_level
-# 4. Env_2
+#' @return A data frame with taxon names as row names and the columns `taxon`,
+#'   `CommonLengthEstim`, `TrophicLevel` and `DemersPelag`.
 #'
-#' @param x Description of the first parameter.
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
-#'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
-#'
-#' @examples
-#'
-#' @importFrom rfishbase load_taxa estimate species
-#' @importFrom dplyr left_join mutate select distinct filter
-#' @importFrom stringr word
+#' @seealso [infer_traits()], which also handles family-level taxa.
 #'
 #' @export
-#'
+get_traits_higher_edna <- function(data_presence, column_species = "Species", column_taxon = "taxon") {
+  species <- presence_taxa(data_presence, column_species)
+  genera <- setdiff(presence_taxa(data_presence, column_taxon), species)
+  info <- fishbase_traits_table()
 
+  species_traits <- aggregate_traits(info, species, "Species")
+  genus_traits <- aggregate_traits(info, genera, "Genus")
+  warn_not_found(c(species[species_traits$n_species == 0], genera[genus_traits$n_species == 0]))
 
-get_traits_higher_edna <- function(data_presence, column_species = "Species", column_taxon = "taxon"){
+  # Genera absent from FishBase are dropped, as before
+  genus_traits <- genus_traits[genus_traits$n_species > 0, , drop = FALSE]
+  rbind(species_traits, genus_traits)[, c("taxon", "CommonLengthEstim", "TrophicLevel", "DemersPelag")]
+}
 
-  # Get all fishbase - first fetch all species names
-  all_fishbase <- rfishbase::load_taxa()
-  # Then get info on species table
-  estimate_table <- rfishbase::estimate()
-  species_table <- rfishbase::species() # Env_2 = DemersPelag
-  info_fishbase <- species_table |>
-    left_join(all_fishbase[,c("SpecCode", "Species")], by = c("SpecCode")) |>
-    # Add estimate table
-    left_join(estimate_table[,c("SpecCode", "Troph")]) |>
-    # Add a common_length_estimated with 0.60 of length if NA
-    mutate(CommonLengthEstim = ifelse(is.na(CommonLength), 0.6*Length, CommonLength)) |>
-    mutate(Species = gsub(" ", "_", Species)) |>
-    dplyr::select(Species, CommonLengthEstim, TrophicLevel = Troph, DemersPelag) |>
-    mutate(Genus = stringr::word(Species, 1, 1, "_"))
-
-  # Intersect with data_presence
-  data_traits_species <- data.frame(species = data_presence[,column_species])
-  data_traits_species <- data_traits_species |>
-                            distinct(species) |>
-                            filter(species != "")
-
-  # Get the taxon but remove those that were species
-  data_traits_taxon <- data.frame(taxon = data_presence[,column_taxon])
-  data_traits_taxon <- data_traits_taxon |>
-                            distinct(taxon) |>
-                            filter(taxon != "")
-  data_traits_taxon <- data_traits_taxon |>
-                            filter(!(taxon %in% data_traits_species[,1]))
-
-  # Species-level
-  data_traits_completed_species <- data_traits_species |>
-    left_join(info_fishbase, by = c("species" = "Species")) |>
-    dplyr::select(-Genus)
-  rownames(data_traits_completed_species) <- data_traits_completed_species[,"species"]
-  colnames(data_traits_completed_species)[1] <- "taxon"
-
-  # Taxon-level (genus)
-  data_traits_completed_genus <- info_fishbase %>%
-    semi_join(data_traits_taxon, by = c("Genus" = "taxon")) %>%
-    group_by(Genus) %>%
-    summarise(
-      CommonLengthEstim = mean(CommonLengthEstim, na.rm = TRUE),
-      TrophicLevel = mean(TrophicLevel, na.rm = TRUE),
-      DemersPelag = names(which.max(table(DemersPelag)))
-    ) %>%
-    ungroup() |> as.data.frame()
-  rownames(data_traits_completed_genus) <- data_traits_completed_genus$Genus
-  colnames(data_traits_completed_genus)[1] <- "taxon"
-
-  # Bind both
-  data_traits_completed_species_genus <- rbind(data_traits_completed_species, data_traits_completed_genus)
-
-  # Return
-  return(data_traits_completed_species_genus)
-
+# Unique, non-empty taxon names of a column, with underscores instead of spaces
+presence_taxa <- function(data_presence, column) {
+  if (!is.data.frame(data_presence)) {
+    stop("`data_presence` must be a data frame.", call. = FALSE)
   }
+  if (!column %in% names(data_presence)) {
+    stop(sprintf("`data_presence` has no column `%s`.", column), call. = FALSE)
+  }
+  taxa <- gsub(" ", "_", as.character(data_presence[[column]]))
+  unique(taxa[!is.na(taxa) & taxa != ""])
+}
 
+warn_not_found <- function(taxa) {
+  if (length(taxa) > 0) {
+    warning(sprintf("%d taxa were not found in FishBase and have missing traits: %s.",
+                    length(taxa), format_taxa(taxa)), call. = FALSE)
+  }
+}
 
+# One row per FishBase species with taxonomy and the traits used by the package
+fishbase_traits_table <- function() {
+  taxa <- as.data.frame(rfishbase::load_taxa())[, c("SpecCode", "Species", "Genus", "Family")]
+  species <- as.data.frame(rfishbase::species())[, c("SpecCode", "CommonLength", "Length", "DemersPelag")]
+  estimate <- as.data.frame(rfishbase::estimate())[, c("SpecCode", "Troph")]
 
+  info <- merge(taxa, species, by = "SpecCode", all.x = TRUE)
+  info <- merge(info, estimate, by = "SpecCode", all.x = TRUE)
 
+  data.frame(Species = gsub(" ", "_", info$Species),
+             Genus = info$Genus,
+             Family = info$Family,
+             CommonLengthEstim = ifelse(is.na(info$CommonLength), 0.6 * info$Length, info$CommonLength),
+             TrophicLevel = info$Troph,
+             DemersPelag = info$DemersPelag)
+}
 
+# Traits of `taxa` at a taxonomic `level` (a column of `info`): mean length and
+# trophic level, most common water position, and number of species averaged.
+aggregate_traits <- function(info, taxa, level) {
+  if (length(taxa) == 0) {
+    return(data.frame(taxon = character(), n_species = integer(), CommonLengthEstim = numeric(),
+                      TrophicLevel = numeric(), DemersPelag = character()))
+  }
+  rows <- info[info[[level]] %in% taxa, , drop = FALSE]
+  groups <- split(rows, factor(rows[[level]], levels = taxa))
+  data.frame(
+    taxon = taxa,
+    n_species = vapply(groups, nrow, integer(1)),
+    CommonLengthEstim = vapply(groups, function(g) mean_or_na(g$CommonLengthEstim), numeric(1)),
+    TrophicLevel = vapply(groups, function(g) mean_or_na(g$TrophicLevel), numeric(1)),
+    DemersPelag = vapply(groups, function(g) mode_or_na(g$DemersPelag), character(1)),
+    row.names = taxa
+  )
+}
 
+mean_or_na <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) > 0) mean(x) else NA_real_
+}
 
+median_or_na <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) > 0) median(x) else NA_real_
+}
 
-
-
-
+# Most common value; ties go to the first in alphabetical order
+mode_or_na <- function(x) {
+  x <- as.character(x[!is.na(x)])
+  if (length(x) > 0) names(which.max(table(x))) else NA_character_
+}

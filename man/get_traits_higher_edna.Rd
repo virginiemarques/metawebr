@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_traits.R
 \name{get_traits_higher_edna}
 \alias{get_traits_higher_edna}
-\title{Title: get_traits_higher_edna}
+\title{Get fish traits for species- and genus-level eDNA assignments}
 \usage{
 get_traits_higher_edna(
   data_presence,
@@ -11,19 +11,23 @@ get_traits_higher_edna(
 )
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{data_presence}{Data frame of detections.}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{column_species}{Column with species-level assignments (`Genus_species`).}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{column_taxon}{Column with the assigned taxon (species or genus). Taxa
+that are not already in `column_species` are treated as genera.}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+A data frame with taxon names as row names and the columns `taxon`,
+  `CommonLengthEstim`, `TrophicLevel` and `DemersPelag`.
 }
 \description{
-# End goal:
+Like [get_traits()], for eDNA data where some sequences are assigned to a
+species and others only to a genus. Species get their FishBase traits;
+genera get the mean length and trophic level, and the most common water
+position, of all FishBase species of the genus.
 }
-\details{
-Find the parameter for the metaweb - for both species and genus-level here
+\seealso{
+[infer_traits()], which also handles family-level taxa.
 }

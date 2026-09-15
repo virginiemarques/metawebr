@@ -2,24 +2,27 @@
 % Please edit documentation in R/diagnostics.R
 \name{get_fig_eval}
 \alias{get_fig_eval}
-\title{Title: get_fig_eval}
+\title{Plot the fit of the niche model for one predator}
 \usage{
 get_fig_eval(data, target_sp = "Zeus faber", pars)
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{data}{Interaction data with the columns `predator`,
+`standardised_predator_length` and `si_prey_length`, e.g.
+[df_interaction_fish].}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{target_sp}{Predator name, as in `data$predator`.}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{pars}{Model parameters, in any form accepted by
+[apply_model_metaweb()].}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+`NULL`, invisibly. Called for its plot.
 }
 \description{
-Title: get_fig_eval
-}
-\details{
-Create figures to evaluate model
+Left panel: size distribution of the observed prey of `target_sp`, of all
+prey, and the predicted niche (scaled) for the mean size of `target_sp`.
+Right panel: predicted interaction probability over the whole predator-prey
+size space, with all observations (those of `target_sp` highlighted). Sizes
+are on a log10 scale, with axes labelled in cm.
 }

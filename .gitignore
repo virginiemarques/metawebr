@@ -6,3 +6,10 @@ inst/doc
 *csv
 renv/*
 outputs/*
+sandbox.R
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+*claude*
+*CLAUDE*
+*Claude*

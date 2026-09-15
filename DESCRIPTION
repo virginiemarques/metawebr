@@ -1,35 +1,47 @@
-Package: Metaweb
+Package: metawebr
 Type: Package
-Title: Metaweb
+Title: Build Fish Metawebs and Compute Local Food-Web Indices
 Version: 0.1.0
 Authors@R: person(
     "Virginie", "Marques",
     role = c("aut", "cre"),
-    email = "virginie.mmarques@usys.ethz.ch",
+    email = "virginie.marques@usys.ethz.ch",
     comment = c(ORCID = "0000-0002-5142-4191")
   )
-Description: Tools to help build a metaweb and compute local indices of network property
-License: What license is it under?
+Description: Infers a regional fish food web (metaweb) from body size with an
+    allometric niche model, corrects it with ecological rules based on FishBase
+    traits, and computes network indices for local communities such as eDNA
+    samples, optionally compared with null models.
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-Suggests: 
-    knitr,
-    rmarkdown
-VignetteBuilder: knitr
-Depends: 
-    R (>= 3.5)
-RoxygenNote: 7.3.3
-Imports: 
+Depends:
+    R (>= 4.1.0)
+Imports:
     dplyr,
     GenSA,
     ggplot2,
     ggraph,
-    gtools,
+    graphics,
+    grid,
     igraph,
-    magrittr,
-    NetIndices,
+    MASS,
+    parallel,
     rfishbase,
     rlang,
-    scales,
-    stringr,
-    tidyr
+    stats,
+    tidyr,
+    utils
+Suggests:
+    ape,
+    fishtree,
+    knitr,
+    missForest,
+    NetIndices,
+    PVR,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    visNetwork
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+RoxygenNote: 7.3.3

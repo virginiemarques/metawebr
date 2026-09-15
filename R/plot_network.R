@@ -1,189 +1,124 @@
-#' Title: plot_tree_network
+#' Plot a food web by trophic level
 #'
-#' Plot network
+#' Draws a metaweb, or a local food web, with the height of each node given by
+#' its trophic level. Trophic levels are computed on the full metaweb, so
+#' heights are comparable between sub-webs. Nodes are coloured by rounded
+#' trophic level and sized by number of prey. Horizontal positions are random:
+#' call [set.seed()] first for a reproducible layout.
 #'
-#' @description
-#' Create a local web wither from the global metaweb or
+#' @param MW Metaweb, usually binary (prey in rows, predators in columns).
+#' @param sp_to_keep Optional taxa to keep, to plot a local web. The producer
+#'   nodes are always kept.
 #'
-#' @param x Description of the first parameter.
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
+#' @return A ggplot object.
 #'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
-#'
-#' @examples
-#'
-#' @importFrom ggraph ggraph geom_edge_link geom_node_point geom_node_text theme_graph
 #' @import ggplot2
-#' @importFrom igraph graph_from_adjacency_matrix V
-#' @importFrom NetIndices TrophInd
 #' @export
-#'
-
-plot_tree_network <- function(MW, sp_to_keep = NULL){
-
-  MW_full <- MW
-  if(!is.null(sp_to_keep)){
-    MW <- filter_adjacency(MW, sp_to_keep)
-  }
-
-  # Define the colors
-  cols_troph <- c(
-    "#F3E79A",  # Level 1
-    "#F9C483",  # Level 2
-    "#ED7C97",  # Level 3
-    "#A653A8",  # Level 4
-    "#704D9E"   # Level 5
-  )
-  names(cols_troph) <- c("1", "2", "3", "4", "5")
-
-  # Create layout matrix
-  Troph <- TrophInd(Flow = MW_full,
-                    Tij = t(MW_full))
-
-  graph <- graph_from_adjacency_matrix(data.matrix(MW),weighted=TRUE)
-
-  layout.matrix<-matrix(nrow=length(V(graph)),ncol=2)  # Rows equal to the number of vertices
-  layout.matrix[,1]<-runif(length(V(graph))) # randomly assign along x-axis
-
-  # Species names of the graph object to recover order and keep only provided species
-  species_vector <- V(graph)$name
-  TL_ordered <- Troph$TL[match(species_vector, rownames(Troph))]
-
-  layout.matrix[,2] <- TL_ordered # y-axis value based on trophic level
-
-  Degree_in <- colSums(MW)
-  Degree <- colSums(MW) + rowSums(MW)
-  Trophic_Level <- as.character(round(TL_ordered,0))
-
-  # Plot
-  ggraph(graph, layout = layout.matrix) +
-    geom_edge_link(aes(edge_alpha = 0.1), edge_colour = "grey66", arrow=arrow(ends="last", angle=20, length=unit(0.15, "inches"), type="closed"), show.legend=F) +
-    geom_node_point(aes(fill = Trophic_Level, size = Degree_in), shape = 21) +
-    geom_node_text(aes(label = name), family = "serif", repel="true") +
-    theme_graph()+
-    scale_fill_manual(values = cols_troph)
-
-
+plot_tree_network <- function(MW, sp_to_keep = NULL) {
+  MW <- check_metaweb(MW)
+  MW_sub <- subset_metaweb(MW, sp_to_keep)
+  plot_trophic_graph(MW_sub, trophic_levels(MW))
 }
 
-
-#' Title: plot_network_focus_sp
+#' Plot the prey of focal taxa
 #'
+#' Plots one or more focal taxa with their prey, up to `order_interaction`
+#' steps down the food chain (`2` adds the prey of the prey), optionally within
+#' a local web. The layout is the same as in [plot_tree_network()].
 #'
-#' @description
-#' Creates a metaweb plot, with the option of having a sub-metaweb by providing a vector and proving species focus vector to only focus on one
-#' several species within that web
+#' @inheritParams plot_tree_network
+#' @param sp_focus Names of the focal taxa.
+#' @param order_interaction Number of trophic steps to include below the focal
+#'   taxa.
+#' @param sp_to_keep Optional taxa to keep before looking for prey (species and
+#'   interactions not in this vector are removed).
 #'
-#' @param MW Global metaweb
-#' @param sp_to_keep Species to keep in the metaweb (species and interactions not in this vector will be removed)
-#' @param sp_focus Focus species where we keep them alongside all species interacting with them
-#' @param order_interaction numeric, number of orders of interaction to keep
+#' @return A ggplot object.
 #'
-#'
-#' @return
-#' ggplot
-#'
-#' @importFrom ggraph ggraph geom_edge_link geom_node_point geom_node_text theme_graph
-#' @import ggplot2
-#' @importFrom igraph graph_from_adjacency_matrix V induced_subgraph neighborhood
-#' @importFrom NetIndices TrophInd
 #' @export
-#'
-#'
+plot_network_focus_sp <- function(MW, sp_focus, order_interaction = 1, sp_to_keep = NULL) {
+  MW <- check_metaweb(MW)
+  check_count(order_interaction, "order_interaction")
+  MW_sub <- subset_metaweb(MW, sp_to_keep)
 
-plot_network_focus_sp <- function(MW, sp_focus, order_interaction = 1, sp_to_keep = NULL){
-
-
-  MW_full <- MW
-  if(!is.null(sp_to_keep)){
-    MW <- filter_adjacency(MW, sp_to_keep)
+  found <- intersect(sp_focus, rownames(MW_sub))
+  where <- if (is.null(sp_to_keep)) "the metaweb" else "the metaweb filtered with `sp_to_keep`"
+  if (length(found) == 0) {
+    stop(sprintf("None of `sp_focus` are in %s: %s.", where, format_taxa(sp_focus)), call. = FALSE)
+  }
+  if (length(found) < length(sp_focus)) {
+    warning(sprintf("Focal taxa not in %s, ignored: %s.", where,
+                    format_taxa(setdiff(sp_focus, found))), call. = FALSE)
   }
 
-  # Define the colors
-  cols_troph <- c(
-    "#F3E79A",  # Level 1
-    "#F9C483",  # Level 2
-    "#ED7C97",  # Level 3
-    "#A653A8",  # Level 4
-    "#704D9E"   # Level 5
+  # Focal taxa and their prey ("in" neighbours) up to order_interaction steps
+  graph <- igraph::graph_from_adjacency_matrix(MW_sub, weighted = TRUE)
+  neighbours <- igraph::neighborhood(graph, order = order_interaction, nodes = found, mode = "in")
+  keep <- rownames(MW_sub)[sort(unique(unlist(lapply(neighbours, as.integer))))]
+
+  plot_trophic_graph(MW_sub[keep, keep, drop = FALSE], trophic_levels(MW))
+}
+
+# Metaweb restricted to sp_to_keep (plus producers), with checks
+subset_metaweb <- function(MW, sp_to_keep) {
+  if (is.null(sp_to_keep)) return(MW)
+  absent <- setdiff(sp_to_keep, rownames(MW))
+  if (length(absent) == length(unique(sp_to_keep))) {
+    stop("None of `sp_to_keep` are in the metaweb.", call. = FALSE)
+  }
+  if (length(absent) > 0) {
+    warning(sprintf("%d taxa of `sp_to_keep` are not in the metaweb: %s.",
+                    length(absent), format_taxa(absent)), call. = FALSE)
+  }
+  filter_adjacency(MW, sp_to_keep)
+}
+
+# Colours of the rounded trophic levels
+cols_troph <- c(`1` = "#F3E79A", `2` = "#F9C483", `3` = "#ED7C97", `4` = "#A653A8", `5` = "#704D9E")
+
+# One row per node of `web`, with its trophic level from `TL` (output of
+# trophic_levels() on the full metaweb), rounded level, number of prey and a
+# random horizontal position. Shared by the static and interactive plots.
+trophic_graph_nodes <- function(web, TL) {
+  taxa <- rownames(web)
+  tl <- TL[taxa, "TL"]
+  data.frame(
+    name = taxa,
+    TL = tl,
+    Trophic_Level = as.character(pmin(pmax(round(tl), 1), 5)),
+    Degree_in = unname(colSums(web)),
+    x = runif(length(taxa)),
+    stringsAsFactors = FALSE
   )
-  names(cols_troph) <- c("1", "2", "3", "4", "5")
+}
 
-  # Create layout matrix
-  Troph <- TrophInd(Flow = MW_full,
-                    Tij = t(MW_full))
+# Draw `web` with node heights from `TL` (output of trophic_levels() on the
+# full metaweb)
+plot_trophic_graph <- function(web, TL) {
+  nodes <- trophic_graph_nodes(web, TL)
+  graph <- igraph::graph_from_adjacency_matrix(web, weighted = TRUE)
+  igraph::V(graph)$Trophic_Level <- nodes$Trophic_Level
+  igraph::V(graph)$Degree_in <- nodes$Degree_in
 
-  graph <- graph_from_adjacency_matrix(data.matrix(MW),weighted=TRUE)
+  layout_matrix <- cbind(nodes$x, nodes$TL)  # random x, trophic level as y
 
-  # Filtering for the species interacting and prune the igraph object
-  # Direct neighbors of the target species - only the preys (in mode) we can change to other modes if necessary
-  neighbors_list <- unlist(neighborhood(graph, order = order_interaction, nodes = sp_focus, mode = "in"))
-  sp_neighbords <- names(neighbors_list)
-  graph <- induced_subgraph(graph, vids = neighbors_list)
-
-  layout.matrix <- matrix(nrow=length(V(graph)),ncol=2)  # Rows equal to the number of vertices
-  layout.matrix[,1] <- runif(length(V(graph))) # randomly assign along x-axis
-
-  # Species names of the graph object to recover order and keep only provided species
-  species_vector <- V(graph)$name
-  TL_ordered <- Troph$TL[match(species_vector, rownames(Troph))]
-
-  layout.matrix[,2] <- TL_ordered # y-axis value based on trophic level
-  rownames(layout.matrix) <- species_vector # y-axis value based on trophic level
-
-  # Prune the MW for the species retaining in the interactions
-  sub_MW <- filter_adjacency(MW, species_vector, keep_producers = FALSE)
-
-  Degree_in <- colSums(sub_MW)
-  Degree <- colSums(sub_MW) + rowSums(sub_MW)
-  Trophic_Level <- as.character(round(TL_ordered,0))
-
-  # Plot
-  ggraph::ggraph(graph, layout = layout.matrix) +
-    ggraph::geom_edge_link(aes(edge_alpha = 0.1), edge_colour = "grey66", arrow=arrow(ends="last", angle=20, length=unit(0.15, "inches"), type="closed"), show.legend=F) +
+  ggraph::ggraph(graph, layout = layout_matrix) +
+    ggraph::geom_edge_link(edge_colour = "grey50", edge_alpha = 0.35,
+                           arrow = arrow(ends = "last", angle = 20, length = unit(0.12, "inches"),
+                                         type = "closed"),
+                           end_cap = ggraph::circle(2.5, "mm")) +
     ggraph::geom_node_point(aes(fill = Trophic_Level, size = Degree_in), shape = 21) +
-    ggraph::geom_node_text(aes(label = name), family = "serif", repel="true") +
-    ggraph::theme_graph()+
-    scale_fill_manual(values = cols_troph)
-
+    ggraph::geom_node_text(aes(label = name), family = "serif", repel = TRUE) +
+    ggraph::theme_graph(base_family = "sans") +
+    scale_fill_manual(values = cols_troph, name = "Trophic level") +
+    scale_size_continuous(name = "Number of prey")
 }
 
-
-
-#' Title: filter_adjacency
-#'
-#' Helper function for the plot_network
-#'
-#' @description
-#'
-#'
-#' @param x Description of the first parameter.
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
-#'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
-#'
-#' @examples
-#'
-#'
-
+# Keep the rows and columns of `keep_vec` (and, by default, the producers)
 filter_adjacency <- function(adj_matrix, keep_vec, keep_producers = TRUE) {
-
-  # If keep_produces is TRUE, add the producers
   if (keep_producers) {
-    keep_vec <- c(keep_vec, c("PrimaryProducer", "SecondaryProducer"))
+    keep_vec <- c(keep_vec, producer_names)
   }
-
   keep <- intersect(keep_vec, rownames(adj_matrix))
-  adj_matrix_filtered <- adj_matrix[keep, keep, drop = FALSE]
-  return(adj_matrix_filtered)
+  adj_matrix[keep, keep, drop = FALSE]
 }

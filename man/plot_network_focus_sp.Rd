@@ -2,23 +2,26 @@
 % Please edit documentation in R/plot_network.R
 \name{plot_network_focus_sp}
 \alias{plot_network_focus_sp}
-\title{Title: plot_network_focus_sp}
+\title{Plot the prey of focal taxa}
 \usage{
 plot_network_focus_sp(MW, sp_focus, order_interaction = 1, sp_to_keep = NULL)
 }
 \arguments{
-\item{MW}{Global metaweb}
+\item{MW}{Metaweb, usually binary (prey in rows, predators in columns).}
 
-\item{sp_focus}{Focus species where we keep them alongside all species interacting with them}
+\item{sp_focus}{Names of the focal taxa.}
 
-\item{order_interaction}{numeric, number of orders of interaction to keep}
+\item{order_interaction}{Number of trophic steps to include below the focal
+taxa.}
 
-\item{sp_to_keep}{Species to keep in the metaweb (species and interactions not in this vector will be removed)}
+\item{sp_to_keep}{Optional taxa to keep before looking for prey (species and
+interactions not in this vector are removed).}
 }
 \value{
-ggplot
+A ggplot object.
 }
 \description{
-Creates a metaweb plot, with the option of having a sub-metaweb by providing a vector and proving species focus vector to only focus on one
-several species within that web
+Plots one or more focal taxa with their prey, up to `order_interaction`
+steps down the food chain (`2` adds the prey of the prey), optionally within
+a local web. The layout is the same as in [plot_tree_network()].
 }

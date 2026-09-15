@@ -2,24 +2,25 @@
 % Please edit documentation in R/get_proba.R
 \name{get_proba}
 \alias{get_proba}
-\title{Title: get_proba}
+\title{Choose the probability threshold of a metaweb}
 \usage{
 get_proba(MW, df_traits, plot_diag = TRUE)
 }
 \arguments{
-\item{MW}{Adjency matrix (or metaweb)}
+\item{MW}{Metaweb of interaction probabilities (prey in rows, predators in
+columns), e.g. from [correct_metaweb_fish()].}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{df_traits}{Traits with taxon names as row names and a `TrophicLevel`
+column. Taxa are matched to the metaweb by name.}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{plot_diag}{Draw the threshold diagnostic plot?}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+The selected threshold (a single number).
 }
 \description{
-Title: get_proba
-}
-\details{
-Find the best proba to validate for the adjency matrix
+Tries thresholds from 0.1 to 0.995. For each, the metaweb is binarised, the
+trophic level of every taxon is computed from the binary web, and the
+absolute differences with the observed trophic levels (`TrophicLevel`, e.g.
+from FishBase) are summed. The threshold with the smallest error is returned.
 }

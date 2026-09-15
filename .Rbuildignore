@@ -4,3 +4,8 @@
 ^\.Rproj\.user$
 ^data-raw$
 ^dev$
+^sandbox\.R$
+^LICENSE\.md$
+^\.claude$
+^CLAUDE\.md$
+^CLAUDE\.local\.md$

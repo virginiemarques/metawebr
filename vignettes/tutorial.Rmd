@@ -1,21 +1,484 @@
 ---
-title: "My Metaweb Package Tutorial"
+title: "Building a fish metaweb and local food-web indices"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Metaweb Package Tutorial}
+  %\VignetteIndexEntry{Building a fish metaweb and local food-web indices}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include=FALSE}
-library(Metaweb)
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  dpi = 90
+)
 ```
 
+```{r load}
+devtools::load_all()
+library(metawebr)
+library(ggplot2)
+```
 
-Load the interaction data from the package 
+## Overview
 
-```{r}
+`metawebr` infers a regional fish food web (the *metaweb*) from body size and
+simple ecological traits. It then extracts the local food web of each site
+(for example an eDNA sample or a survey area), computes network indices, and
+can compare them with null models.
+
+| Step | What happens | Function(s) |
+|------|--------------|-------------|
+| 1 | Explore predator–prey body-size records | `df_interaction_fish` |
+| 2 | Calibrate the body-size niche model | `metaweb_mod_parameters()`, `get_fig_eval()` |
+| 3 | Gather and clean traits for your taxa | `get_traits()`, `infer_traits()`, `clean_traits()` |
+| 4 | Predict interaction probabilities for every pair of taxa | `apply_model_metaweb()` |
+| 5 | Apply ecological corrections | `correct_metaweb_fish()` |
+| 6 | Pick a probability threshold and binarise the metaweb | `get_proba()`, `correct_metaweb_proba()` |
+| 7 | Build site × taxon matrices and compute local indices | `make_species_station_matrix()`, `get_indic_cells()` |
+| 8 | Compare local indices with null models | `get_indic_null()`, `plot_indic_null()` |
+| 9 | Plot food webs | `plot_tree_network()`, `plot_network_focus_sp()`, `plot_network_interactive()` |
+
+The interaction model is the allometric niche model of Gravel et al. (2013).
+A predator of body length $L_{pred}$ feeds on prey whose length falls within a
+Gaussian niche. The niche optimum $o$ and width $r$ both scale with predator
+size (all lengths on a log10 scale):
+
+$$
+o = a_0 + a_1 \log_{10} L_{pred}, \qquad
+r = b_0 + b_1 \log_{10} L_{pred}, \qquad
+P(\text{link}) = \exp\left(-\frac{(o - \log_{10} L_{prey})^2}{2r^2}\right)
+$$
+
+## 1. Predator–prey body-size data
+
+The package ships `df_interaction_fish`, a compilation of `r nrow(df_interaction_fish)`
+observed feeding events. Each row gives a predator, a prey and their lengths (cm).
+Only four columns are used for calibration:
+
+```{r data}
 data("df_interaction_fish")
-head(df_interaction_fish)
+head(df_interaction_fish[, c("predator", "prey",
+                             "standardised_predator_length", "si_prey_length")])
 ```
 
+On a log scale, prey size increases with predator size, and the spread of prey
+sizes widens too. The niche model captures exactly this pattern:
+
+```{r data-plot, fig.height = 4.5}
+ggplot(df_interaction_fish,
+       aes(standardised_predator_length, si_prey_length)) +
+  geom_point(alpha = 0.15, size = 0.8) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Predator length (cm, log scale)",
+       y = "Prey length (cm, log scale)") +
+  theme_minimal()
+```
+
+## 2. Calibrate the niche model
+
+`metaweb_mod_parameters()` removes duplicate records and caps each
+predator–prey pair at `observation_resample` observations, so that heavily
+sampled pairs don't dominate the fit. It then estimates $a_0, a_1, b_0, b_1$ by
+maximum likelihood, using simulated annealing (`GenSA`). With
+`data_path = NULL` it uses `df_interaction_fish`; you can also pass a data
+frame or the path of a CSV with the same columns.
+
+Calibration takes about two minutes and involves random down-sampling, so it is
+not run here:
+
+```{r calibrate, eval = FALSE}
+set.seed(1)
+params <- metaweb_mod_parameters(path_par_output = "params_metaweb.txt")
+params$calibrated_data
+```
+
+The other functions accept the parameters in three forms: the list returned
+by `metaweb_mod_parameters()`, the file it wrote, or a plain numeric vector.
+This vignette uses the values estimated from `df_interaction_fish`:
+
+```{r pars}
+pars <- c(a0 = -0.5616698, a1 = 0.9611534, b0 = 0.1247726, b1 = 0.1359744)
+```
+
+`get_fig_eval()` checks the fit for one predator. The left panel compares the
+sizes of that predator's observed prey with all prey sizes and with the
+predicted niche. The right panel shows the predicted link probability across
+the whole predator–prey size space, overlaid with the observations.
+
+```{r fit-eval, fig.width = 9, fig.height = 4.5}
+get_fig_eval(data = df_interaction_fish, target_sp = "Gadus morhua", pars = pars)
+```
+
+## 3. Example communities and their traits
+
+`df_presence_obis` is an example community dataset built from OBIS occurrence
+records since 2000. It holds the 40 most recorded fish species at each of six
+sites:
+
+* three Mediterranean rocky reefs: Marseille, Medes Islands, Port-Cros;
+* three tropical western Atlantic coral reefs: Florida Keys, Belize Barrier
+  Reef, Bonaire.
+
+```{r presence}
+data("df_presence_obis")
+head(df_presence_obis)
+table(df_presence_obis$region)
+```
+
+The model needs one row per taxon, with **row names set to the taxon names**,
+and these columns:
+
+* `CommonLengthEstim`: common length (cm). If FishBase has no common length,
+  it is estimated as 0.6 × maximum length.
+* `TrophicLevel`: the FishBase trophic level estimate. It is used by the
+  corrections and to choose the threshold.
+* `DemersPelag`: position in the water column (FishBase categories).
+
+`get_traits()` downloads these traits from FishBase through `rfishbase`.
+Taxon names must use underscores (`Coris_julis`). For eDNA taxa assigned only
+to a genus or a family, `infer_traits()` averages the traits of all FishBase
+species in that group.
+
+```{r traits-fishbase, eval = FALSE}
+df_traits_obis <- get_traits(df_presence_obis, column_species = "species")
+```
+
+The result is stored as `df_traits_obis`, so this vignette runs offline.
+`clean_traits()` reports missing values and fills them from other species of
+the same genus. By default it then removes taxa that still have missing traits.
+Here *Equetus punctatus* is not in FishBase and has no congener in the data, so
+it is removed:
+
+```{r traits}
+data("df_traits_obis")
+traits <- clean_traits(df_traits_obis)
+```
+
+`clean_traits()` only borrows values from congeners in your own table. A more
+thorough option is `impute_traits_phylo()`. It predicts missing values with
+random forests (missForest), using each species' position in the fish
+phylogeny as extra information. It repeats this over the 100 complete fish
+trees of Rabosky et al. (2018) and averages the results. It downloads the trees
+and takes a few minutes, so it is not run here:
+
+```{r traits-impute, eval = FALSE}
+set.seed(1)
+traits_imputed <- impute_traits_phylo(df_traits_obis, mc.cores = 4)
+traits_imputed[!is.na(traits_imputed$imputed), ]
+
+# Or in one step from taxon names: FishBase lookup, then imputation
+traits_obis <- infer_traits(unique(df_presence_obis$species), method = "100matrix",
+                            mc.cores = 4)
+```
+
+The fishtree trees cover ray-finned fishes only. To impute sharks and rays,
+pass your own trees with `trees =`.
+
+## 4. Predict interaction probabilities
+
+`apply_model_metaweb()` applies the calibrated model to every pair of taxa.
+In the resulting square matrix, **rows are prey and columns are predators**:
+`mw["Chromis_chromis", "Muraena_helena"]` is the probability that the moray
+eel eats the damselfish.
+
+```{r metaweb}
+mw <- apply_model_metaweb(traits, pars)
+dim(mw)
+round(mw[c("Chromis_chromis", "Coris_julis", "Diplodus_vulgaris"),
+         c("Muraena_helena", "Scorpaena_scrofa", "Coris_julis")], 2)
+```
+
+## 5. Ecological corrections
+
+Size alone predicts some implausible links. `correct_metaweb_fish()` applies
+five corrections, each of which can be switched off:
+
+* `herbivory`: herbivores have no fish prey. By default these are taxa with a
+  trophic level < 2.4; on these reefs, mostly parrotfishes, surgeonfishes and
+  damselfishes.
+* `water_pos`: removes links between taxa that live in incompatible parts of the
+  water column (for example bathydemersal vs. pelagic-oceanic). It also removes
+  cannibalism.
+* `small_fish`: taxa shorter than 10 cm have no fish prey.
+* `PP_SP_add`: adds two basal nodes, `PrimaryProducer` and `SecondaryProducer`,
+  as food for herbivores, planktivores and small fish.
+* `exception_BigFish`: large (> 100 cm) low-trophic-level taxa feed on
+  secondary producers only.
+
+```{r correct}
+mw_corr <- correct_metaweb_fish(data_meta = mw, data_traits = traits)
+dim(mw_corr)
+```
+
+The first message lists the taxa treated as herbivores. FishBase trophic levels
+can misclassify some taxa, so check this list. To change it, use
+`set_herbivores()`. It stores the classification in a `Herbivore` column of the
+trait table, which `correct_metaweb_fish()` then uses instead of the trophic
+level. For example, to stop treating the scrawled cowfish as a herbivore:
+
+```{r herbivores}
+traits_edited <- set_herbivores(traits, remove = "Acanthostracion_polygonium")
+sum(traits_edited$Herbivore)
+```
+
+You would then run `correct_metaweb_fish(mw, traits_edited)` again. The rest of
+this vignette keeps the default classification.
+
+### Checking the corrections
+
+`compare_metawebs()` lists what the corrections changed, so you can check it by
+hand. Each species pair appears once, with both directions of the interaction:
+
+* `taxon_1`, `taxon_2`: the two taxa;
+* `t1_eats_t2_before`, `t1_eats_t2_after`, `t1_eats_t2_correction`: the
+  probability that taxon 1 eats taxon 2 before and after correction, and the
+  correction that changed it (`NA` if unchanged);
+* the same three `t2_eats_t1_*` columns for the other direction (`NA` for
+  cannibalism, where both taxa are the same);
+* the traits of both taxa (`t1_*`, `t2_*`).
+
+Pairs are sorted by the highest probability, before correction, among their
+changed links, so the most likely links that were removed come first. Changed
+links below 0.01 both before and after are hidden (`min_proba = 0` shows them
+all).
+
+```{r corrections-pairs}
+changes <- compare_metawebs(mw, mw_corr, traits)
+nrow(changes)
+table(c(changes$t1_eats_t2_correction, changes$t2_eats_t1_correction))
+
+shown <- head(changes[, 1:8])
+shown[, c(3, 4, 6, 7)] <- signif(shown[, c(3, 4, 6, 7)], 2)
+shown
+```
+
+Use `level = "link"` instead for one row per direction.
+
+With `level = "taxon"` you get one row per taxon, with how much each
+correction changed its prey. For a probability metaweb these are expected
+numbers of prey:
+
+```{r corrections-taxa}
+by_taxon <- compare_metawebs(mw, mw_corr, traits, level = "taxon")
+cols <- c("prey_before", "prey_after", grep("^prey_change_", names(by_taxon), value = TRUE))
+cbind(taxon = by_taxon$taxon, round(by_taxon[, cols], 1))[
+  by_taxon$taxon %in% c("Muraena_helena", "Sarpa_salpa", "Tripterygion_delaisi"), ]
+```
+
+To review the changes in a spreadsheet, save the table with
+`write.csv(changes, "metaweb_corrections.csv", row.names = FALSE)`.
+`compare_metawebs()` works on any two metawebs, e.g. before and after
+binarisation (`compare_metawebs(mw_corr, mw_bin)`); changes that were not made
+by `correct_metaweb_fish()` have no `correction`.
+
+## 6. Choose a threshold and binarise
+
+Network indices need presence/absence links, so the probabilities must be
+thresholded. `get_proba()` tries thresholds from 0.1 to 0.995. For each one it
+computes the trophic levels implied by the binary web and sums their absolute
+differences from the FishBase trophic levels. It keeps the threshold with the
+smallest error:
+
+```{r threshold, fig.height = 4.5}
+threshold <- get_proba(mw_corr, traits)
+threshold
+```
+
+`correct_metaweb_proba()` runs the same search and returns the binary metaweb.
+You can also give it a `threshold` directly, for example to test how sensitive
+your results are to this choice.
+
+```{r binarise, fig.show = "hide"}
+mw_bin <- correct_metaweb_proba(mw_corr, traits)
+sum(mw_bin)  # number of links
+```
+
+## 7. Local food webs and indices
+
+Local food webs are sub-networks of the metaweb: a link is kept when both taxa
+occur at the site. `make_species_station_matrix()` turns long detection data
+(one row per site × taxon, with a count such as eDNA reads or records) into a
+binary site × taxon matrix. It also adds the two producer nodes to every site.
+
+```{r stations}
+pa <- make_species_station_matrix(df_presence_obis,
+                                  station_col = "station",
+                                  species_col = "species",
+                                  count_col = "count")
+dim(pa)
+```
+
+`get_indic_cells()` drops taxa that are absent from the metaweb, with a
+warning. Here that is the species removed by `clean_traits()`, so we drop it
+explicitly:
+
+```{r stations-filter}
+pa <- pa[, colnames(pa) %in% rownames(mw_bin)]
+```
+
+`get_indic_cells()` returns one row per site with about 40 indices. Its
+`mc.cores` argument runs sites in parallel (not supported on Windows).
+
+```{r indices}
+indices <- get_indic_cells(P_A_data = pa, Lniche = mw_bin)
+
+cols <- c("Species", "Connectance", "TL_moy", "length_chain", "Omn_moy",
+          "Ntop", "Nbas", "Modularity")
+cbind(site = indices$site, round(indices[, cols], 3))
+```
+
+Some of the indices:
+
+| Index | Meaning |
+|-------|---------|
+| `Species` | Number of nodes, including the two producer nodes |
+| `Link`, `Connectance` | Number of links, and links / nodes² |
+| `TL_moy`, `length_chain` | Mean trophic level, and maximum trophic level rounded up |
+| `Omn_moy` | Mean omnivory index |
+| `Ntop`, `Nbas`, `Nint` | Fractions of top (no predator), basal (at most one prey) and intermediate taxa |
+| `Vul`, `Gen` | Mean number of predators and of prey per taxon |
+| `Modularity` | Modularity of walktrap communities (`igraph`) |
+| `Mean_path_length`, `Shortest_path_k` | Mean shortest path, and the share of paths of length *k* |
+| `Planktivores`, `HTI`, `MTI` | Share of planktivores, high-trophic-level indicator and mean trophic level of predators. Computed only for webs with more than 50 nodes, otherwise `NA` |
+
+See `?get_indic_cells` for the full list.
+
+## 8. Null models
+
+Many indices change with the number of species, so raw values are hard to
+compare between sites. A null model asks whether a local web is more or less
+connected, modular, etc. than expected for a random community of the same
+richness, drawn from the regional pool.
+
+`get_indic_null()` builds `n_null` random communities per site, keeping the
+site's richness and its producer nodes, and computes the same indices. For each
+index it reports:
+
+* the null mean and standard deviation;
+* the standardised effect size, `ses = (observed − null_mean) / null_sd`.
+  Values below −1.96 or above 1.96 are roughly significant at 5 %;
+* a two-sided, rank-based `p_value`.
+
+Two methods are available:
+
+* `"equiprobable"`: every taxon of the pool is equally likely to be drawn;
+* `"frequency"`: taxa are drawn in proportion to the number of sites where they
+  occur, so common taxa appear more often.
+
+The pool is every taxon present in at least one site of `P_A_data`. Pooling the
+Mediterranean and Caribbean sites would put Caribbean species into
+Mediterranean null communities, so we run the null model separately for each
+region:
+
+```{r null-equiprobable}
+region <- setNames(df_presence_obis$region, df_presence_obis$station)
+sites_by_region <- split(rownames(pa), region[rownames(pa)])
+
+set.seed(42)
+null_equi <- do.call(rbind, lapply(sites_by_region, function(sites) {
+  get_indic_null(pa[sites, ], mw_bin, method = "equiprobable", n_null = 199)
+}))
+rownames(null_equi) <- NULL
+
+res <- null_equi[null_equi$index %in% c("Connectance", "TL_moy"), ]
+cbind(res[, c("site", "index")], round(res[, c("observed", "null_mean", "ses", "p_value")], 3))
+```
+
+`plot_indic_null()` shows the effect sizes of several indices at once. Points
+are coloured when p < 0.05 and dashed lines mark SES = ±1.96:
+
+```{r null-plot, fig.width = 8, fig.height = 5.5}
+plot_indic_null(null_equi,
+                indices = c("Connectance", "TL_moy", "Omn_moy",
+                            "Modularity", "Mean_path_length", "Nbas"))
+```
+
+`get_indic_cells()` can compute the observed indices and the null model in one
+call. With `null_model = "none"` (the default) it returns the indices only;
+with a method it returns a list with `indices` and `null_model`. Here is the
+frequency-weighted model for the Mediterranean sites, compared with the
+equiprobable one:
+
+```{r null-frequency}
+set.seed(42)
+med <- get_indic_cells(pa[sites_by_region$Mediterranean, ], mw_bin,
+                       null_model = "frequency", n_null = 199)
+names(med)
+
+compare <- merge(null_equi[, c("site", "index", "ses")],
+                 med$null_model[, c("site", "index", "ses")],
+                 by = c("site", "index"), suffixes = c("_equiprobable", "_frequency"))
+compare[, c("ses_equiprobable", "ses_frequency")] <-
+  round(compare[, c("ses_equiprobable", "ses_frequency")], 2)
+compare[compare$index %in% c("Connectance", "TL_moy"), ]
+```
+
+`n_null = 199` keeps this vignette fast. Use 999 or more for published analyses.
+
+## 9. Plotting food webs
+
+`plot_tree_network()` draws a food web with each node's height set by its
+trophic level. Nodes are coloured by rounded trophic level and sized by number
+of prey. Horizontal positions are random, so set a seed for a reproducible
+layout. The result is a `ggplot`, so you can add titles and themes as usual.
+When nodes are crowded, some labels are left out.
+
+Use `sp_to_keep` to plot a local web. Trophic levels are still computed from the
+full metaweb, so node heights are comparable between sites:
+
+```{r plot-local, fig.width = 9, fig.height = 7, warning = FALSE}
+marseille <- df_presence_obis$species[df_presence_obis$station == "Marseille"]
+set.seed(1)
+plot_tree_network(mw_bin, sp_to_keep = marseille) + ggtitle("Marseille")
+```
+
+`plot_network_focus_sp()` zooms in on one or more focal taxa and their prey, up
+to `order_interaction` steps down the food chain (`2` adds the prey of the prey):
+
+```{r plot-focus, fig.width = 8, fig.height = 6, warning = FALSE}
+set.seed(1)
+plot_network_focus_sp(mw_bin, sp_focus = "Muraena_helena",
+                      order_interaction = 2, sp_to_keep = marseille) +
+  ggtitle("Moray eel and its prey in Marseille")
+```
+
+`plot_network_interactive()` draws the same layout as an interactive network
+(it needs the visNetwork package). Click a taxon to highlight its links and
+fade the rest of the web; hold Ctrl (Cmd on macOS) while clicking to select
+several taxa, or pick one by name in the menu. Click an empty area to clear
+the selection. Hover a taxon or a link for details, scroll to zoom and drag to
+pan. With `links = "prey"` or `links = "predators"` only one direction is
+highlighted:
+
+```{r plot-interactive, eval = requireNamespace("visNetwork", quietly = TRUE)}
+set.seed(1)
+plot_network_interactive(mw_bin, sp_to_keep = marseille, height = "600px")
+```
+
+The result is an htmlwidget, so you can save it as a stand-alone HTML file to
+share:
+
+```{r save-interactive, eval = FALSE}
+web <- plot_network_interactive(mw_bin, sp_to_keep = marseille)
+htmlwidgets::saveWidget(web, "marseille_foodweb.html")
+```
+
+## References
+
+* Gravel, D., Poisot, T., Albouy, C., Velez, L. & Mouillot, D. (2013). Inferring
+  food web structure from predator–prey body size relationships.
+  *Methods in Ecology and Evolution*, 4, 1083–1090.
+* Albouy, C. et al. (2019). The marine fish food web is globally connected.
+  *Nature Ecology & Evolution*, 3, 1153–1161.
+* Froese, R. & Pauly, D. (eds.). FishBase. World Wide Web electronic publication, www.fishbase.org.
+* Rabosky, D.L. et al. (2018). An inverse latitudinal gradient in speciation
+  rate for marine fishes. *Nature*, 559, 392–395.
+* Stekhoven, D.J. & Bühlmann, P. (2012). MissForest: non-parametric missing
+  value imputation for mixed-type data. *Bioinformatics*, 28, 112–118.
+* OBIS. Ocean Biodiversity Information System. Intergovernmental Oceanographic
+  Commission of UNESCO. www.obis.org.

@@ -1,52 +1,61 @@
-#' Title: make_species_station_matrix
+#' Build a site x taxon matrix from detection data
 #'
-#' Transform from dna to matrix fitted for funtion of p/a, adds primary and secondary producers
+#' Converts long detection data (one row per site, taxon and count, e.g. eDNA
+#' reads) to a site x taxon matrix, summing counts, and adds the
+#' `PrimaryProducer` and `SecondaryProducer` columns, present at every site.
 #'
-#' @description
+#' @param df Data frame of detections.
+#' @param station_col,species_col,count_col Names of the site, taxon and
+#'   (numeric) count columns.
+#' @param convert_binary Convert counts to presence (1) / absence (0)?
 #'
-#'
-#' @param x Description of the first parameter.
-#' @param y Description of the second parameter (if applicable).
-#' @param ... Other optional parameters passed to methods.
-#'
-#' @details
-#'
-#' @return
-#' Description of the object that the function returns.
-#' If the function doesn't return anything meaningful, you can say `NULL`.
+#' @return A numeric matrix with sites in rows and taxa, followed by the two
+#'   producers, in columns. Rows with a missing site or taxon are removed with
+#'   a warning.
 #'
 #' @examples
+#' det <- data.frame(station = c("s1", "s1", "s2"),
+#'                   taxon = c("Gadus_morhua", "Clupea_harengus", "Gadus_morhua"),
+#'                   reads = c(120, 30, 55))
+#' make_species_station_matrix(det, station_col = "station",
+#'                             species_col = "taxon", count_col = "reads")
 #'
-#' @importFrom magrittr %>%
-#' @importFrom dplyr group_by across summarise mutate all_of
-#' @importFrom tidyr pivot_wider
-#'
+#' @importFrom rlang .data
 #' @export
-
-make_species_station_matrix <- function(df, station_col = "ID.Number", species_col = "taxon", count_col = "count", convert_binary = TRUE){
-
-  # Ensure the needed columns exist
+make_species_station_matrix <- function(df, station_col = "ID.Number", species_col = "taxon",
+                                        count_col = "count", convert_binary = TRUE) {
+  if (!is.data.frame(df)) {
+    stop("`df` must be a data frame.", call. = FALSE)
+  }
   required_cols <- c(station_col, species_col, count_col)
   if (!all(required_cols %in% names(df))) {
-    stop("Data frame must contain columns: ", paste(required_cols, collapse = ", "))
+    stop("Data frame must contain columns: ", paste(required_cols, collapse = ", "), call. = FALSE)
+  }
+  if (!is.numeric(df[[count_col]])) {
+    stop(sprintf("Column `%s` must be numeric.", count_col), call. = FALSE)
+  }
+  bad <- is.na(df[[station_col]]) | df[[station_col]] == "" |
+    is.na(df[[species_col]]) | df[[species_col]] == ""
+  if (any(bad)) {
+    warning(sprintf("%d rows with a missing site or taxon were removed.", sum(bad)), call. = FALSE)
+    df <- df[!bad, , drop = FALSE]
+  }
+  if (nrow(df) == 0) {
+    stop("`df` has no detection left.", call. = FALSE)
   }
 
-  # Create the wide matrix
-  df_matrix <- df %>%
-    group_by(across(all_of(c(station_col, species_col)))) %>%
-    summarise(count = sum(.data[[count_col]], na.rm = TRUE), .groups = "drop") %>%
-    tidyr::pivot_wider(names_from = {{species_col}}, values_from = count, values_fill = 0) |>
-    mutate(PrimaryProducer = 1,
-           SecondaryProducer = 1)
+  df_matrix <- df |>
+    dplyr::group_by(dplyr::across(dplyr::all_of(c(station_col, species_col)))) |>
+    dplyr::summarise(count = sum(.data[[count_col]], na.rm = TRUE), .groups = "drop") |>
+    tidyr::pivot_wider(names_from = dplyr::all_of(species_col), values_from = "count",
+                       values_fill = 0)
 
-  # Convert to matrix and set row names
-  mat <- as.matrix(df_matrix[,-1])
-  rownames(mat) <- df_matrix[[station_col]]
+  mat <- as.matrix(df_matrix[, -1])
+  rownames(mat) <- as.character(df_matrix[[station_col]])
+  mat <- cbind(mat, PrimaryProducer = 1, SecondaryProducer = 1)
 
   if (convert_binary) {
     mat[mat > 0] <- 1
   }
-
-  return(mat)
-
+  mat
 }

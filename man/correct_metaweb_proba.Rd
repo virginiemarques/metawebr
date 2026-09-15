@@ -2,24 +2,27 @@
 % Please edit documentation in R/get_proba.R
 \name{correct_metaweb_proba}
 \alias{correct_metaweb_proba}
-\title{Title: correct_metaweb_proba}
+\title{Binarise a metaweb}
 \usage{
-correct_metaweb_proba(MW, df_traits)
+correct_metaweb_proba(MW, df_traits, threshold = NULL, plot_diag = TRUE)
 }
 \arguments{
-\item{MW}{Adjency matrix (or metaweb)}
+\item{MW}{Metaweb of interaction probabilities (prey in rows, predators in
+columns), e.g. from [correct_metaweb_fish()].}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{df_traits}{Traits with taxon names as row names and a `TrophicLevel`
+column. Not needed when `threshold` is given.}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{threshold}{Optional probability threshold. `NULL` (default) chooses it
+with [get_proba()].}
+
+\item{plot_diag}{Draw the threshold diagnostic plot?}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+A 0/1 matrix with the same dimensions as `MW`; links with a
+  probability >= threshold are set to 1.
 }
 \description{
-Title: correct_metaweb_proba
-}
-\details{
-correct the metaweb based on the proba
+Turns interaction probabilities into 0/1 links. By default the threshold is
+chosen with [get_proba()].
 }

@@ -2,24 +2,55 @@
 % Please edit documentation in R/traits.R
 \name{infer_traits}
 \alias{infer_traits}
-\title{Title: infer_traits}
+\title{Infer traits of species, genera and families from FishBase}
 \usage{
-infer_traits(data_traits, data_presence, method = c("mean_level", "100matrix"))
+infer_traits(
+  taxa,
+  rank = NULL,
+  fishbase_table = NULL,
+  method = c("mean_level", "100matrix"),
+  ...
+)
 }
 \arguments{
-\item{x}{Description of the first parameter.}
+\item{taxa}{Character vector of taxon names: species as `Genus_species`
+(spaces are converted to underscores), genera or families.}
 
-\item{y}{Description of the second parameter (if applicable).}
+\item{rank}{Taxonomic rank of each taxon (`"species"`, `"genus"` or
+`"family"`), recycled if of length 1. `NULL` (default) detects it by
+looking the names up in FishBase.}
 
-\item{...}{Other optional parameters passed to methods.}
+\item{fishbase_table}{Optional table of FishBase species traits, to avoid
+downloading it again. Needs the columns `Species`, `Genus`, `Family`,
+`CommonLengthEstim`, `TrophicLevel` and `DemersPelag`.}
+
+\item{method}{`"mean_level"` (default) or `"100matrix"` to also impute
+missing values with [impute_traits_phylo()].}
+
+\item{...}{Arguments passed to [impute_traits_phylo()] when
+`method = "100matrix"`, e.g. `trees`, `n_runs` or `mc.cores`.}
 }
 \value{
-Description of the object that the function returns.
-If the function doesn't return anything meaningful, you can say `NULL`.
+A data frame with taxon names as row names and the columns `taxon`,
+  `rank`, `n_species` (number of FishBase species averaged),
+  `CommonLengthEstim`, `TrophicLevel` and `DemersPelag`. Taxa not found in
+  FishBase have missing traits, with a warning.
 }
 \description{
-Clean trait data. Get common lenght if missing (0.6*TL)
+Gets traits for taxa identified at different taxonomic levels, e.g. eDNA
+assignments. Species get their own FishBase traits. Genera and families get
+the mean length and trophic level, and the most common water position, of
+all FishBase species they contain (`method = "mean_level"`).
 }
 \details{
-Infer trait data when missing
+With `method = "100matrix"`, trait values still missing afterwards (e.g.
+species absent from FishBase) are then imputed from the phylogeny with
+[impute_traits_phylo()], by default over the 100 complete fish trees of
+fishtree.
+}
+\examples{
+\dontrun{
+infer_traits(c("Gadus_morhua", "Sebastes", "Liparidae"))
+}
+
 }
