@@ -13,21 +13,21 @@ get_traits_higher_edna(
 \arguments{
 \item{data_presence}{Data frame of detections.}
 
-\item{column_species}{Column with species-level assignments (`Genus_species`).}
+\item{column_species}{Column with species-level assignments (\code{Genus_species}).}
 
 \item{column_taxon}{Column with the assigned taxon (species or genus). Taxa
-that are not already in `column_species` are treated as genera.}
+that are not already in \code{column_species} are treated as genera.}
 }
 \value{
-A data frame with taxon names as row names and the columns `taxon`,
-  `CommonLengthEstim`, `TrophicLevel` and `DemersPelag`.
+A data frame with taxon names as row names and the columns \code{taxon},
+\code{CommonLengthEstim}, \code{TrophicLevel} and \code{DemersPelag}.
 }
 \description{
-Like [get_traits()], for eDNA data where some sequences are assigned to a
+Like \code{\link[=get_traits]{get_traits()}}, for eDNA data where some sequences are assigned to a
 species and others only to a genus. Species get their FishBase traits;
 genera get the mean length and trophic level, and the most common water
 position, of all FishBase species of the genus.
 }
 \seealso{
-[infer_traits()], which also handles family-level taxa.
+\code{\link[=infer_traits]{infer_traits()}}, which also handles family-level taxa.
 }

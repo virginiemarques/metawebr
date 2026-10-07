@@ -16,28 +16,28 @@ impute_traits_phylo(
 )
 }
 \arguments{
-\item{data_traits}{Traits with species names (`Genus_species`) as row names.}
+\item{data_traits}{Traits with species names (\code{Genus_species}) as row names.}
 
 \item{traits}{Trait columns used as predictors and imputed. Numeric columns
 are imputed as numbers, the others as categories.}
 
-\item{trees}{`NULL` (default) to download the fishtree complete trees, or a
-`phylo` or `multiPhylo` object whose tip labels are species names (with
+\item{trees}{\code{NULL} (default) to download the fishtree complete trees, or a
+\code{phylo} or \code{multiPhylo} object whose tip labels are species names (with
 spaces or underscores).}
 
 \item{n_eigen}{Number of phylogenetic eigenvectors used as predictors.}
 
 \item{n_runs}{Number of missForest runs per tree.}
 
-\item{maxiter, ntree}{Passed to [missForest::missForest()].}
+\item{maxiter, ntree}{Passed to \code{\link[missForest:missForest]{missForest::missForest()}}.}
 
 \item{mc.cores}{Number of cores; trees are processed in parallel (forked
 processes, not available on Windows).}
 }
 \value{
-`data_traits` with the missing values of `traits` filled for species
-  in the phylogeny, and a column `imputed` listing the traits imputed for
-  each taxon (`NA` when none).
+\code{data_traits} with the missing values of \code{traits} filled for species
+in the phylogeny, and a column \code{imputed} listing the traits imputed for
+each taxon (\code{NA} when none).
 }
 \description{
 Fills missing trait values with random-forest imputation (missForest) using
@@ -47,11 +47,13 @@ imputation uncertainty.
 }
 \details{
 For each tree:
-1. the tree is pruned to the species of `data_traits`;
-2. the first `n_eigen` phylogenetic eigenvectors are computed: principal
-   coordinates of the patristic distance matrix, as in `PVR::PVRdecomp()`;
-3. [missForest::missForest()] is run `n_runs` times on the traits plus the
-   eigenvectors.
+\enumerate{
+\item the tree is pruned to the species of \code{data_traits};
+\item the first \code{n_eigen} phylogenetic eigenvectors are computed: principal
+coordinates of the patristic distance matrix, as in \code{PVR::PVRdecomp()};
+\item \code{\link[missForest:missForest]{missForest::missForest()}} is run \code{n_runs} times on the traits plus the
+eigenvectors.
+}
 
 Numeric traits are then averaged over all runs and trees; other traits take
 their most frequent imputed value. Observed values are never changed.
@@ -59,12 +61,12 @@ their most frequent imputed value. Observed values are never changed.
 Only species in the phylogeny can be imputed. The others keep their missing
 values, with a warning. By default the trees are the 100 complete fish trees
 of Rabosky et al. (2018), downloaded with
-`fishtree::fishtree_complete_phylogeny()`. They cover ray-finned fishes only,
-so pass your own `trees` to include sharks and rays.
+\code{fishtree::fishtree_complete_phylogeny()}. They cover ray-finned fishes only,
+so pass your own \code{trees} to include sharks and rays.
 
-Runtime grows with the number of trees x `n_runs`: with the defaults, about
-5 minutes on one core for 150 species. Call [set.seed()] first for
-reproducible results, whatever `mc.cores`.
+Runtime grows with the number of trees x \code{n_runs}: with the defaults, about
+5 minutes on one core for 150 species. Call \code{\link[=set.seed]{set.seed()}} first for
+reproducible results, whatever \code{mc.cores}.
 }
 \examples{
 \dontrun{
@@ -76,15 +78,15 @@ traits[!is.na(traits$imputed), ]
 }
 \references{
 Diniz-Filho, J.A.F., de Sant'Ana, C.E.R. & Bini, L.M. (1998). An eigenvector
-method for estimating phylogenetic inertia. *Evolution*, 52, 1247-1262.
+method for estimating phylogenetic inertia. \emph{Evolution}, 52, 1247-1262.
 
 Rabosky, D.L. et al. (2018). An inverse latitudinal gradient in speciation
-rate for marine fishes. *Nature*, 559, 392-395.
+rate for marine fishes. \emph{Nature}, 559, 392-395.
 
 Stekhoven, D.J. & Buhlmann, P. (2012). MissForest: non-parametric missing
-value imputation for mixed-type data. *Bioinformatics*, 28, 112-118.
+value imputation for mixed-type data. \emph{Bioinformatics}, 28, 112-118.
 }
 \seealso{
-[infer_traits()] with `method = "100matrix"`, [clean_traits()] for a
-  faster genus-based filling.
+\code{\link[=infer_traits]{infer_traits()}} with \code{method = "100matrix"}, \code{\link[=clean_traits]{clean_traits()}} for a
+faster genus-based filling.
 }

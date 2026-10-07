@@ -22,13 +22,13 @@ make_species_station_matrix(
 }
 \value{
 A numeric matrix with sites in rows and taxa, followed by the two
-  producers, in columns. Rows with a missing site or taxon are removed with
-  a warning.
+producers, in columns. Rows with a missing site or taxon are removed with
+a warning.
 }
 \description{
 Converts long detection data (one row per site, taxon and count, e.g. eDNA
 reads) to a site x taxon matrix, summing counts, and adds the
-`PrimaryProducer` and `SecondaryProducer` columns, present at every site.
+\code{PrimaryProducer} and \code{SecondaryProducer} columns, present at every site.
 }
 \examples{
 det <- data.frame(station = c("s1", "s1", "s2"),

@@ -18,23 +18,23 @@ plot_network_interactive(
 \item{sp_to_keep}{Optional taxa to keep, to plot a local web. The producer
 nodes are always kept.}
 
-\item{links}{Links highlighted for the selected taxa: `"both"` (prey and
-predators), `"prey"` or `"predators"`.}
+\item{links}{Links highlighted for the selected taxa: \code{"both"} (prey and
+predators), \code{"prey"} or \code{"predators"}.}
 
-\item{height, width}{Size of the plot, in CSS units (e.g. `"700px"` or
-`"100%"`).}
+\item{height, width}{Size of the plot, in CSS units (e.g. \code{"700px"} or
+\code{"100\%"}).}
 }
 \value{
 A visNetwork htmlwidget. Print it to show it in the viewer or in an
-  R Markdown document, or save it as a stand-alone HTML file with
-  `htmlwidgets::saveWidget()`.
+R Markdown document, or save it as a stand-alone HTML file with
+\code{htmlwidgets::saveWidget()}.
 }
 \description{
 Draws a metaweb, or a local food web, as an interactive network with the
-layout of [plot_tree_network()]: the height of each node is its trophic level
+layout of \code{\link[=plot_tree_network]{plot_tree_network()}}: the height of each node is its trophic level
 (computed on the full metaweb), nodes are coloured by rounded trophic level
 and sized by number of prey. Horizontal positions are random: call
-[set.seed()] first for a reproducible layout.
+\code{\link[=set.seed]{set.seed()}} first for a reproducible layout.
 }
 \details{
 Click a taxon to highlight its links and fade the rest of the web. Hold Ctrl
@@ -42,8 +42,8 @@ Click a taxon to highlight its links and fade the rest of the web. Hold Ctrl
 in the menu above the plot. Click an empty area to clear the selection. Hover
 a taxon or a link for details; scroll to zoom and drag to pan.
 
-Every non-zero value of `MW` is drawn as a link, so binarise a probability
-metaweb first (see [correct_metaweb_proba()]). Requires the visNetwork
+Every non-zero value of \code{MW} is drawn as a link, so binarise a probability
+metaweb first (see \code{\link[=correct_metaweb_proba]{correct_metaweb_proba()}}). Requires the visNetwork
 package.
 }
 \examples{

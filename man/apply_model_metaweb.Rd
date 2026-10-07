@@ -12,22 +12,22 @@ apply_model_metaweb(
 }
 \arguments{
 \item{data_traits}{Data frame with one row per taxon and taxon names as row
-names, as returned by [get_traits()]. Must contain `length_column`.}
+names, as returned by \code{\link[=get_traits]{get_traits()}}. Must contain \code{length_column}.}
 
-\item{path_pars}{Model parameters (`a0`, `a1`, `b0`, `b1`): the path to a
-file written by [metaweb_mod_parameters()], the list it returns, or a
+\item{path_pars}{Model parameters (\code{a0}, \code{a1}, \code{b0}, \code{b1}): the path to a
+file written by \code{\link[=metaweb_mod_parameters]{metaweb_mod_parameters()}}, the list it returns, or a
 numeric vector of length 4.}
 
 \item{length_column}{Name of the column holding body length (cm).}
 }
 \value{
-A square matrix of interaction probabilities with **prey in rows and
-  predators in columns**: `mw[i, j]` is the probability that taxon `j` eats
-  taxon `i`.
+A square matrix of interaction probabilities with \strong{prey in rows and
+predators in columns}: \code{mw[i, j]} is the probability that taxon \code{j} eats
+taxon \code{i}.
 }
 \description{
 Applies the calibrated allometric niche model (Gravel et al. 2013) to every
-pair of taxa in `data_traits`.
+pair of taxa in \code{data_traits}.
 }
 \examples{
 traits <- data.frame(
@@ -40,6 +40,6 @@ round(apply_model_metaweb(traits, pars), 2)
 }
 \references{
 Gravel, D., Poisot, T., Albouy, C., Velez, L. & Mouillot, D.
-  (2013). Inferring food web structure from predator-prey body size
-  relationships. *Methods in Ecology and Evolution*, 4, 1083-1090.
+(2013). Inferring food web structure from predator-prey body size
+relationships. \emph{Methods in Ecology and Evolution}, 4, 1083-1090.
 }

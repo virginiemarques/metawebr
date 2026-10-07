@@ -13,12 +13,12 @@ metaweb_mod_parameters(
 )
 }
 \arguments{
-\item{data_path}{`NULL` (default) to use [df_interaction_fish], the path to
-a CSV file, or a data frame. Must contain the columns `predator`, `prey`,
-`standardised_predator_length` and `si_prey_length` (lengths in cm).}
+\item{data_path}{\code{NULL} (default) to use \link{df_interaction_fish}, the path to
+a CSV file, or a data frame. Must contain the columns \code{predator}, \code{prey},
+\code{standardised_predator_length} and \code{si_prey_length} (lengths in cm).}
 
 \item{path_par_output}{Optional path where the fitted parameters are written
-with [utils::write.table()].}
+with \code{\link[utils:write.table]{utils::write.table()}}.}
 
 \item{observation_resample}{Maximum number of records kept per
 predator-prey pair.}
@@ -29,24 +29,26 @@ predator-prey pair.}
 }
 \value{
 A list with
-  * `calibration_data`: starting values, from a linear regression of prey
-    size on predator size;
-  * `calibrated_data`: fitted parameters, a named vector `a0`, `a1`, `b0`, `b1`;
-  * `neg_log_likelihood`: value of the objective at the optimum;
-  * `n_obs`: number of records used.
+\itemize{
+\item \code{calibration_data}: starting values, from a linear regression of prey
+size on predator size;
+\item \code{calibrated_data}: fitted parameters, a named vector \code{a0}, \code{a1}, \code{b0}, \code{b1};
+\item \code{neg_log_likelihood}: value of the objective at the optimum;
+\item \code{n_obs}: number of records used.
+}
 
-  The list can be passed directly to [apply_model_metaweb()].
+The list can be passed directly to \code{\link[=apply_model_metaweb]{apply_model_metaweb()}}.
 }
 \description{
 Estimates the four parameters of the niche model of Gravel et al. (2013)
 from observed predator-prey body lengths, by maximum likelihood with
-generalized simulated annealing ([GenSA::GenSA()]).
+generalized simulated annealing (\code{\link[GenSA:GenSA]{GenSA::GenSA()}}).
 }
 \details{
 Before fitting, duplicated records (same predator, prey and lengths) are
 removed and each predator-prey pair is randomly down-sampled to at most
-`observation_resample` records, so that heavily sampled pairs don't dominate
-the fit. Call [set.seed()] first for reproducible results.
+\code{observation_resample} records, so that heavily sampled pairs don't dominate
+the fit. Call \code{\link[=set.seed]{set.seed()}} first for reproducible results.
 
 The model: a predator of log10 length \eqn{M} eats prey of log10 length
 around \eqn{o = a_0 + a_1 M}, within a Gaussian niche of width
@@ -62,6 +64,6 @@ params$calibrated_data
 }
 \references{
 Gravel, D., Poisot, T., Albouy, C., Velez, L. & Mouillot, D.
-  (2013). Inferring food web structure from predator-prey body size
-  relationships. *Methods in Ecology and Evolution*, 4, 1083-1090.
+(2013). Inferring food web structure from predator-prey body size
+relationships. \emph{Methods in Ecology and Evolution}, 4, 1083-1090.
 }

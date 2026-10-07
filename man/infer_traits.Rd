@@ -13,39 +13,39 @@ infer_traits(
 )
 }
 \arguments{
-\item{taxa}{Character vector of taxon names: species as `Genus_species`
+\item{taxa}{Character vector of taxon names: species as \code{Genus_species}
 (spaces are converted to underscores), genera or families.}
 
-\item{rank}{Taxonomic rank of each taxon (`"species"`, `"genus"` or
-`"family"`), recycled if of length 1. `NULL` (default) detects it by
+\item{rank}{Taxonomic rank of each taxon (\code{"species"}, \code{"genus"} or
+\code{"family"}), recycled if of length 1. \code{NULL} (default) detects it by
 looking the names up in FishBase.}
 
 \item{fishbase_table}{Optional table of FishBase species traits, to avoid
-downloading it again. Needs the columns `Species`, `Genus`, `Family`,
-`CommonLengthEstim`, `TrophicLevel` and `DemersPelag`.}
+downloading it again. Needs the columns \code{Species}, \code{Genus}, \code{Family},
+\code{CommonLengthEstim}, \code{TrophicLevel} and \code{DemersPelag}.}
 
-\item{method}{`"mean_level"` (default) or `"100matrix"` to also impute
-missing values with [impute_traits_phylo()].}
+\item{method}{\code{"mean_level"} (default) or \code{"100matrix"} to also impute
+missing values with \code{\link[=impute_traits_phylo]{impute_traits_phylo()}}.}
 
-\item{...}{Arguments passed to [impute_traits_phylo()] when
-`method = "100matrix"`, e.g. `trees`, `n_runs` or `mc.cores`.}
+\item{...}{Arguments passed to \code{\link[=impute_traits_phylo]{impute_traits_phylo()}} when
+\code{method = "100matrix"}, e.g. \code{trees}, \code{n_runs} or \code{mc.cores}.}
 }
 \value{
-A data frame with taxon names as row names and the columns `taxon`,
-  `rank`, `n_species` (number of FishBase species averaged),
-  `CommonLengthEstim`, `TrophicLevel` and `DemersPelag`. Taxa not found in
-  FishBase have missing traits, with a warning.
+A data frame with taxon names as row names and the columns \code{taxon},
+\code{rank}, \code{n_species} (number of FishBase species averaged),
+\code{CommonLengthEstim}, \code{TrophicLevel} and \code{DemersPelag}. Taxa not found in
+FishBase have missing traits, with a warning.
 }
 \description{
 Gets traits for taxa identified at different taxonomic levels, e.g. eDNA
 assignments. Species get their own FishBase traits. Genera and families get
 the mean length and trophic level, and the most common water position, of
-all FishBase species they contain (`method = "mean_level"`).
+all FishBase species they contain (\code{method = "mean_level"}).
 }
 \details{
-With `method = "100matrix"`, trait values still missing afterwards (e.g.
+With \code{method = "100matrix"}, trait values still missing afterwards (e.g.
 species absent from FishBase) are then imputed from the phylogeny with
-[impute_traits_phylo()], by default over the 100 complete fish trees of
+\code{\link[=impute_traits_phylo]{impute_traits_phylo()}}, by default over the 100 complete fish trees of
 fishtree.
 }
 \examples{

@@ -7,10 +7,49 @@
 \title{metawebr: build fish metawebs and compute local food-web indices}
 \description{
 Infers a regional fish food web (metaweb) from body size with the
-allometric niche model of Gravel et al. (2013), corrects it with simple
-ecological rules, and computes network indices for local communities,
-optionally compared with null models.
+allometric niche model of Gravel et al. (2013), curates it with ecological
+rules and FishBase diet data, validates it against observed feeding links,
+and computes network indices for local communities, optionally compared with
+null models.
 }
+\details{
+Two vignettes walk through the workflow:
+\code{vignette("metaweb", package = "metawebr")} and
+\code{vignette("local-food-webs", package = "metawebr")}.
+}
+\section{Building the metaweb}{
+
+\itemize{
+\item Size model: \code{\link[=metaweb_mod_parameters]{metaweb_mod_parameters()}}, \code{\link[=get_fig_eval]{get_fig_eval()}},
+\code{\link[=apply_model_metaweb]{apply_model_metaweb()}}.
+\item Taxon names: \code{\link[=harmonise_taxa]{harmonise_taxa()}}, \code{\link[=rename_taxa]{rename_taxa()}}.
+\item Traits: \code{\link[=get_traits]{get_traits()}}, \code{\link[=get_traits_higher_edna]{get_traits_higher_edna()}}, \code{\link[=infer_traits]{infer_traits()}},
+\code{\link[=clean_traits]{clean_traits()}}, \code{\link[=impute_traits_phylo]{impute_traits_phylo()}}, \code{\link[=add_depth_range]{add_depth_range()}}.
+\item Curation: \code{\link[=set_herbivores]{set_herbivores()}}, \code{\link[=get_herbivores_fishbase]{get_herbivores_fishbase()}},
+\code{\link[=correct_metaweb_fish]{correct_metaweb_fish()}}, \code{\link[=compare_metawebs]{compare_metawebs()}}.
+\item Binarisation: \code{\link[=get_proba]{get_proba()}}, \code{\link[=correct_metaweb_proba]{correct_metaweb_proba()}}.
+\item Validation: \code{\link[=cv_size_model]{cv_size_model()}}, \code{\link[=validate_metaweb]{validate_metaweb()}}, \code{\link[=get_diet_links]{get_diet_links()}}.
+\item FishBase cache: \code{\link[=clear_fishbase_cache]{clear_fishbase_cache()}}, \code{\link[=fishbase_cache_info]{fishbase_cache_info()}}.
+}
+}
+
+\section{Local food webs}{
+
+\itemize{
+\item Site data: \code{\link[=make_species_station_matrix]{make_species_station_matrix()}}.
+\item Indices: \code{\link[=get_indic_cells]{get_indic_cells()}}.
+\item Null models: \code{\link[=get_indic_null]{get_indic_null()}}, \code{\link[=plot_indic_null]{plot_indic_null()}}.
+\item Plots: \code{\link[=plot_tree_network]{plot_tree_network()}}, \code{\link[=plot_network_focus_sp]{plot_network_focus_sp()}},
+\code{\link[=plot_network_interactive]{plot_network_interactive()}}.
+}
+}
+
+\section{Data}{
+
+\link{df_interaction_fish}, \link{df_depth_env}, \link{df_presence_obis}, \link{df_traits_obis},
+\link{metaweb_obis}.
+}
+
 \author{
 \strong{Maintainer}: Virginie Marques \email{virginie.marques@usys.ethz.ch} (\href{https://orcid.org/0000-0002-5142-4191}{ORCID})
 

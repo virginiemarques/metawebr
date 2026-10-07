@@ -7,22 +7,22 @@
 get_fig_eval(data, target_sp = "Zeus faber", pars)
 }
 \arguments{
-\item{data}{Interaction data with the columns `predator`,
-`standardised_predator_length` and `si_prey_length`, e.g.
-[df_interaction_fish].}
+\item{data}{Interaction data with the columns \code{predator},
+\code{standardised_predator_length} and \code{si_prey_length}, e.g.
+\link{df_interaction_fish}.}
 
-\item{target_sp}{Predator name, as in `data$predator`.}
+\item{target_sp}{Predator name, as in \code{data$predator}.}
 
 \item{pars}{Model parameters, in any form accepted by
-[apply_model_metaweb()].}
+\code{\link[=apply_model_metaweb]{apply_model_metaweb()}}.}
 }
 \value{
-`NULL`, invisibly. Called for its plot.
+\code{NULL}, invisibly. Called for its plot.
 }
 \description{
-Left panel: size distribution of the observed prey of `target_sp`, of all
-prey, and the predicted niche (scaled) for the mean size of `target_sp`.
+Left panel: size distribution of the observed prey of \code{target_sp}, of all
+prey, and the predicted niche (scaled) for the mean size of \code{target_sp}.
 Right panel: predicted interaction probability over the whole predator-prey
-size space, with all observations (those of `target_sp` highlighted). Sizes
+size space, with all observations (those of \code{target_sp} highlighted). Sizes
 are on a log10 scale, with axes labelled in cm.
 }

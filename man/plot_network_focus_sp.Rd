@@ -21,7 +21,7 @@ interactions not in this vector are removed).}
 A ggplot object.
 }
 \description{
-Plots one or more focal taxa with their prey, up to `order_interaction`
-steps down the food chain (`2` adds the prey of the prey), optionally within
-a local web. The layout is the same as in [plot_tree_network()].
+Plots one or more focal taxa with their prey, up to \code{order_interaction}
+steps down the food chain (\code{2} adds the prey of the prey), optionally within
+a local web. The layout is the same as in \code{\link[=plot_tree_network]{plot_tree_network()}}.
 }

@@ -8,24 +8,26 @@ get_traits(data_presence, column_species = "species")
 }
 \arguments{
 \item{data_presence}{Data frame with a column of species names, as
-`Genus_species` (spaces are converted to underscores).}
+\code{Genus_species} (spaces are converted to underscores).}
 
 \item{column_species}{Name of that column.}
 }
 \value{
 A data frame with one row per species and species names as row
-  names: a column named after `column_species`, then the three traits.
-  Species not found in FishBase have missing traits, with a warning.
+names: a column named after \code{column_species}, then the three traits.
+Species not found in FishBase have missing traits, with a warning.
 }
 \description{
 Downloads from FishBase (with \pkg{rfishbase}) the traits needed to build a
 metaweb, for the species of a presence table:
 }
 \details{
-* `CommonLengthEstim`: common length (cm), or 0.6 x maximum length when
-  FishBase has no common length;
-* `TrophicLevel`: FishBase trophic level estimate;
-* `DemersPelag`: position in the water column.
+\itemize{
+\item \code{CommonLengthEstim}: common length (cm), or 0.6 x maximum length when
+FishBase has no common length;
+\item \code{TrophicLevel}: FishBase trophic level estimate;
+\item \code{DemersPelag}: position in the water column.
+}
 }
 \examples{
 \dontrun{
@@ -35,6 +37,6 @@ get_traits(presence)
 
 }
 \seealso{
-[get_traits_higher_edna()] and [infer_traits()] for genus- or
-  family-level taxa, [clean_traits()] to fill missing values.
+\code{\link[=get_traits_higher_edna]{get_traits_higher_edna()}} and \code{\link[=infer_traits]{infer_traits()}} for genus- or
+family-level taxa, \code{\link[=clean_traits]{clean_traits()}} to fill missing values.
 }

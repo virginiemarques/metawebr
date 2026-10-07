@@ -6,24 +6,24 @@
 \title{FishBase traits of the species in df_presence_obis}
 \format{
 A data frame with 136 rows, species names as row names, and 4
-  columns:
+columns:
 \describe{
-  \item{species}{Species name.}
-  \item{CommonLengthEstim}{Common length (cm), or 0.6 x maximum length.}
-  \item{TrophicLevel}{FishBase trophic level estimate.}
-  \item{DemersPelag}{Position in the water column.}
+\item{species}{Species name.}
+\item{CommonLengthEstim}{Common length (cm), or 0.6 x maximum length.}
+\item{TrophicLevel}{FishBase trophic level estimate.}
+\item{DemersPelag}{Position in the water column.}
 }
 }
 \source{
 FishBase (Froese, R. & Pauly, D., eds.), retrieved with rfishbase
-  5.0.1 on 14 September 2026.
+5.0.1 on 14 September 2026.
 }
 \usage{
 df_traits_obis
 }
 \description{
-Output of `get_traits(df_presence_obis, column_species = "species")`, stored
+Output of \code{get_traits(df_presence_obis, column_species = "species")}, stored
 so that examples, tests and the vignette run offline. One species,
-*Equetus punctatus*, was not found in FishBase and has missing traits.
+\emph{Equetus punctatus}, was not found in FishBase and has missing traits.
 }
 \keyword{datasets}

@@ -7,9 +7,9 @@
 \format{
 A data frame with 11786 rows and 4 columns:
 \describe{
-  \item{Species}{Scientific name.}
-  \item{Depth_min, Depth_max}{Depth range (m).}
-  \item{Env_2}{Position in the water column (FishBase categories).}
+\item{Species}{Scientific name.}
+\item{Depth_min, Depth_max}{Depth range (m).}
+\item{Env_2}{Position in the water column (FishBase categories).}
 }
 }
 \usage{

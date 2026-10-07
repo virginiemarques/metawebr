@@ -8,23 +8,23 @@ clean_traits(data_traits, fill_by_genus = TRUE, remove_incomplete = TRUE)
 }
 \arguments{
 \item{data_traits}{Traits with taxon names as row names and the columns
-`CommonLengthEstim`, `TrophicLevel` and `DemersPelag`, e.g. from
-[get_traits()].}
+\code{CommonLengthEstim}, \code{TrophicLevel} and \code{DemersPelag}, e.g. from
+\code{\link[=get_traits]{get_traits()}}.}
 
 \item{fill_by_genus}{Fill missing values from the same genus?}
 
 \item{remove_incomplete}{Remove taxa with a missing trait (after filling)?}
 }
 \value{
-`data_traits`, filled and/or filtered.
+\code{data_traits}, filled and/or filtered.
 }
 \description{
 Reports the number of missing values of each trait. Then, optionally, fills
 missing values from other taxa of the same genus in the table (median length
 and trophic level, most common water position) and removes the taxa that
 still have missing traits. The genus is the part of the row name before the
-first underscore, so a genus-level taxon (`Gadus`) is grouped with its
-species (`Gadus_morhua`).
+first underscore, so a genus-level taxon (\code{Gadus}) is grouped with its
+species (\code{Gadus_morhua}).
 }
 \examples{
 traits <- data.frame(
@@ -37,5 +37,5 @@ clean_traits(traits)
 
 }
 \seealso{
-[infer_traits()] to use all FishBase species of a genus or family.
+\code{\link[=infer_traits]{infer_traits()}} to use all FishBase species of a genus or family.
 }

@@ -7,17 +7,17 @@
 \format{
 A data frame with 240 rows and 6 columns:
 \describe{
-  \item{station}{Site name.}
-  \item{region}{`"Mediterranean"` or `"Atlantic_reef"`.}
-  \item{lon, lat}{Centre of the site bounding box (decimal degrees).}
-  \item{species}{Species name, as `Genus_species`.}
-  \item{count}{Number of OBIS occurrence records since 2000.}
+\item{station}{Site name.}
+\item{region}{\code{"Mediterranean"} or \code{"Atlantic_reef"}.}
+\item{lon, lat}{Centre of the site bounding box (decimal degrees).}
+\item{species}{Species name, as \code{Genus_species}.}
+\item{count}{Number of OBIS occurrence records since 2000.}
 }
 }
 \source{
 OBIS (2026). Ocean Biodiversity Information System.
-  Intergovernmental Oceanographic Commission of UNESCO. obis.org, accessed
-  14 September 2026.
+Intergovernmental Oceanographic Commission of UNESCO. obis.org, accessed
+14 September 2026.
 }
 \usage{
 df_presence_obis
@@ -28,9 +28,9 @@ elasmobranchs) with the most occurrence records since 2000 at three
 Mediterranean rocky-reef sites (Marseille, Medes Islands, Port-Cros) and
 three tropical western Atlantic coral-reef sites (Florida Keys, Belize Barrier
 Reef, Bonaire). Each site is a bounding box a few tens of kilometres wide.
-Built by `data-raw/df_presence_obis.R`.
+Built by \code{data-raw/df_presence_obis.R}.
 }
 \seealso{
-[df_traits_obis] for the traits of these species.
+\link{df_traits_obis} for the traits of these species.
 }
 \keyword{datasets}

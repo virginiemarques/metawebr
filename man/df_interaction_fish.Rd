@@ -6,15 +6,15 @@
 \title{Predator-prey body-size records for fish}
 \format{
 A data frame with 5847 rows and 61 columns. The package uses four of
-  them: `predator` and `prey` (scientific names),
-  `standardised_predator_length` (predator length, cm) and `si_prey_length`
-  (prey length, cm).
+them: \code{predator} and \code{prey} (scientific names),
+\code{standardised_predator_length} (predator length, cm) and \code{si_prey_length}
+(prey length, cm).
 }
 \usage{
 df_interaction_fish
 }
 \description{
 Observed feeding events between fish predators and their prey, with body
-lengths. Used by [metaweb_mod_parameters()] to calibrate the niche model.
+lengths. Used by \code{\link[=metaweb_mod_parameters]{metaweb_mod_parameters()}} to calibrate the niche model.
 }
 \keyword{datasets}

@@ -20,5 +20,5 @@ Draws a metaweb, or a local food web, with the height of each node given by
 its trophic level. Trophic levels are computed on the full metaweb, so
 heights are comparable between sub-webs. Nodes are coloured by rounded
 trophic level and sized by number of prey. Horizontal positions are random:
-call [set.seed()] first for a reproducible layout.
+call \code{\link[=set.seed]{set.seed()}} first for a reproducible layout.
 }

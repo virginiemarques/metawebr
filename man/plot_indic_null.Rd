@@ -7,10 +7,10 @@
 plot_indic_null(null_res, indices = NULL, alpha = 0.05)
 }
 \arguments{
-\item{null_res}{Output of [get_indic_null()], or the `null_model` element
-returned by [get_indic_cells()].}
+\item{null_res}{Output of \code{\link[=get_indic_null]{get_indic_null()}}, or the \code{null_model} element
+returned by \code{\link[=get_indic_cells]{get_indic_cells()}}.}
 
-\item{indices}{Indices to plot, in facet order. Default: all of `null_res`.}
+\item{indices}{Indices to plot, in facet order. Default: all of \code{null_res}.}
 
 \item{alpha}{Significance level used to colour the points.}
 }
@@ -19,5 +19,5 @@ A ggplot object.
 }
 \description{
 Plots the standardised effect size (SES) of each index for each site.
-Dashed lines mark SES = +/-1.96; coloured points are significant at `alpha`.
+Dashed lines mark SES = +/-1.96; coloured points are significant at \code{alpha}.
 }
