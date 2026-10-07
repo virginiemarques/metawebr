@@ -9,58 +9,68 @@ get_indic_cells(
   Lniche,
   mc.cores = 1,
   null_model = c("none", "equiprobable", "frequency"),
-  n_null = 100
+  n_null = 100,
+  min_species_tl = 50
 )
 }
 \arguments{
 \item{P_A_data}{Site x taxon matrix with site names as row names and taxon
-names as column names, as returned by [make_species_station_matrix()].
+names as column names, as returned by \code{\link[=make_species_station_matrix]{make_species_station_matrix()}}.
 Values > 0 are presences.}
 
 \item{Lniche}{Binary metaweb (prey in rows, predators in columns), e.g. from
-[correct_metaweb_proba()].}
+\code{\link[=correct_metaweb_proba]{correct_metaweb_proba()}}.}
 
 \item{mc.cores}{Number of cores. Values > 1 use forked processes, which are
 not available on Windows.}
 
-\item{null_model}{`"none"` (default) for observed indices only, or a null
-model passed to [get_indic_null()]: `"equiprobable"` or `"frequency"`.}
+\item{null_model}{\code{"none"} (default) for observed indices only, or a null
+model passed to \code{\link[=get_indic_null]{get_indic_null()}}: \code{"equiprobable"} or \code{"frequency"}.}
 
-\item{n_null}{Number of null communities per site, when `null_model` is not
-`"none"`.}
+\item{n_null}{Number of null communities per site, when \code{null_model} is not
+\code{"none"}.}
+
+\item{min_species_tl}{Minimum number of taxa (producers excluded) for
+\code{Planktivores}, \code{HTI} and \code{MTI}; smaller webs get \code{NA}.}
 }
 \value{
-If `null_model = "none"`, a data frame with one row per site: a
-  `site` column followed by the indices. Otherwise a list with `indices`
-  (that data frame) and `null_model` (the output of [get_indic_null()]).
+If \code{null_model = "none"}, a data frame with one row per site: a
+\code{site} column followed by the indices. Otherwise a list with \code{indices}
+(that data frame) and \code{null_model} (the output of \code{\link[=get_indic_null]{get_indic_null()}}).
 }
 \description{
 Extracts the local food web of each site (the sub-network of the metaweb
 formed by the taxa present) and computes network indices for it.
-Optionally compares the indices with null models (see [get_indic_null()]).
+Optionally compares the indices with null models (see \code{\link[=get_indic_null]{get_indic_null()}}).
 }
 \details{
-Taxa of `P_A_data` absent from `Lniche` are dropped with a warning.
+Taxa of \code{P_A_data} absent from \code{Lniche} are dropped with a warning.
 
 Indices:
-* `Species`: number of nodes, producers included. `Connectance_p`: sum of
-  link values / `Species`^2.
-* `Link`, `Link_max`, `Connectance`, `b_power_law`: number of links, nodes^2,
-  their ratio, and \eqn{\log_2 L / (\log_2 S - 1)}.
-* `Ntop`, `Nbas`, `Nint`: fractions of top (no predator, at least one prey),
-  basal (at most one prey) and intermediate taxa, producers excluded.
-* `Vul`, `Vulsd`, `Gen`, `Gensd`: mean and sd of the number of predators
-  (vulnerability) and prey (generality), producers excluded.
-* `TL_moy`, `length_chain`, `Omn_moy`: mean trophic level, maximum trophic
-  level rounded up, mean omnivory index.
-* `Planktivores`, `HTI`, `MTI`: fraction of taxa with a trophic level in
-  (2.4, 3.7), fraction above 4, mean trophic level of taxa above 3.25.
-  Only for webs with more than 50 nodes, otherwise `NA`.
-* `Modularity` (walktrap communities), `Diameter`, `Din_*` / `Dout_*`
-  (in- and out-degree mean, min, max), `Closeness_*`,
-  `Nb_articulate_point`, `Transitivity`, `Coreness_*`.
-* `Mean_path_length` and `Shortest_path_1` to `Shortest_path_5`: mean
-  shortest path and fraction of shortest paths of each length (`NA` when
-  there is none).
-* `redundancy`: not implemented yet, always 0.
+\itemize{
+\item \code{Species}: number of nodes, producers included. \code{Connectance_p}: sum of
+link values / \code{Species}^2.
+\item \code{Link}, \code{Link_max}, \code{Connectance}, \code{b_power_law}: number of links, nodes^2,
+their ratio, and \eqn{\log_2 L / (\log_2 S - 1)}, producers included.
+\item \code{Species_taxa}, \code{Link_taxa}, \code{Connectance_taxa}: the same without the
+producer nodes (links among taxa only, divided by \code{Species_taxa}^2).
+\item \code{Ntop}, \code{Nbas}, \code{Nint}: fractions of basal taxa (no prey among the taxa,
+i.e. eating only producers or nothing), top taxa (not basal, no
+predator) and intermediate taxa (the others), producers excluded. They
+sum to 1.
+\item \code{Vul}, \code{Vulsd}, \code{Gen}, \code{Gensd}: mean and sd of the number of predators
+(vulnerability) and prey (generality), producers excluded.
+\item \code{TL_moy}, \code{length_chain}, \code{Omn_moy}: mean trophic level, maximum trophic
+level rounded up, mean omnivory index.
+\item \code{Planktivores}, \code{HTI}, \code{MTI}: fraction of taxa with a trophic level in
+(2.4, 3.7), fraction above 4, mean trophic level of taxa above 3.25,
+producers excluded. Only for webs with more than \code{min_species_tl} taxa,
+otherwise \code{NA}.
+\item \code{Modularity} (walktrap communities), \code{Diameter}, \verb{Din_*} / \verb{Dout_*}
+(in- and out-degree mean, min, max), \verb{Closeness_*},
+\code{Nb_articulate_point}, \code{Transitivity}, \verb{Coreness_*}.
+\item \code{Mean_path_length} and \code{Shortest_path_1} to \code{Shortest_path_5}: mean
+shortest path and fraction of shortest paths of each length (\code{NA} when
+there is none).
+}
 }

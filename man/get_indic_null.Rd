@@ -11,60 +11,68 @@ get_indic_null(
   n_null = 100,
   indices = NULL,
   mc.cores = 1,
-  observed = NULL
+  observed = NULL,
+  min_species_tl = 50
 )
 }
 \arguments{
 \item{P_A_data}{Site x taxon matrix with site names as row names and taxon
-names as column names, as returned by [make_species_station_matrix()].
+names as column names, as returned by \code{\link[=make_species_station_matrix]{make_species_station_matrix()}}.
 Values > 0 are presences.}
 
 \item{Lniche}{Binary metaweb (prey in rows, predators in columns), e.g. from
-[correct_metaweb_proba()].}
+\code{\link[=correct_metaweb_proba]{correct_metaweb_proba()}}.}
 
-\item{method}{Null model: `"equiprobable"` or `"frequency"`.}
+\item{method}{Null model: \code{"equiprobable"} or \code{"frequency"}.}
 
 \item{n_null}{Number of null communities per site.}
 
 \item{indices}{Indices to report. By default all indices except those fixed
-by site richness (`Species`, `Link_max`, `redundancy`).}
+by site richness (\code{Species}, \code{Species_taxa}, \code{Link_max}).}
 
 \item{mc.cores}{Number of cores. Values > 1 use forked processes, which are
 not available on Windows.}
 
-\item{observed}{Optional output of [get_indic_cells()] for the same
-`P_A_data`, to avoid recomputing the observed indices.}
+\item{observed}{Optional output of \code{\link[=get_indic_cells]{get_indic_cells()}} for the same
+\code{P_A_data}, to avoid recomputing the observed indices.}
+
+\item{min_species_tl}{Minimum number of taxa (producers excluded) for
+\code{Planktivores}, \code{HTI} and \code{MTI}; smaller webs get \code{NA}.}
 }
 \value{
 A data frame with one row per site and index:
-  * `site`, `index`;
-  * `observed`: observed value;
-  * `null_mean`, `null_sd`: mean and standard deviation across null
-    communities;
-  * `ses`: standardised effect size, (observed - null_mean) / null_sd.
-    Negative values mean lower than expected by chance. `NA` when the null
-    distribution has no variance;
-  * `p_value`: two-sided rank-based p-value,
-    2 * min(P(null <= observed), P(null >= observed)), with
-    P = (count + 1) / (n_null + 1).
+\itemize{
+\item \code{site}, \code{index};
+\item \code{observed}: observed value;
+\item \code{null_mean}, \code{null_sd}: mean and standard deviation across null
+communities;
+\item \code{ses}: standardised effect size, (observed - null_mean) / null_sd.
+Negative values mean lower than expected by chance. \code{NA} when the null
+distribution has no variance;
+\item \code{p_value}: two-sided rank-based p-value,
+2 * min(P(null <= observed), P(null >= observed)), with
+P = (count + 1) / (n_null + 1).
+}
 }
 \description{
-For each site, builds `n_null` random communities with the same number of
+For each site, builds \code{n_null} random communities with the same number of
 taxa as the site, drawn from the regional pool (the taxa present in at least
-one site of `P_A_data` and in the metaweb). Their food webs are extracted
-from the metaweb and the same indices as in [get_indic_cells()] are
+one site of \code{P_A_data} and in the metaweb). Their food webs are extracted
+from the metaweb and the same indices as in \code{\link[=get_indic_cells]{get_indic_cells()}} are
 computed. The observed value of each index is then compared with its null
 distribution.
 }
 \details{
 Two null models are available:
-* `"equiprobable"`: every taxon of the pool has the same chance to be drawn.
-* `"frequency"`: taxa are drawn with a probability proportional to the
-  number of sites where they occur, so common taxa are drawn more often.
+\itemize{
+\item \code{"equiprobable"}: every taxon of the pool has the same chance to be drawn.
+\item \code{"frequency"}: taxa are drawn with a probability proportional to the
+number of sites where they occur, so common taxa are drawn more often.
+}
 
 Producer nodes present at a site are kept in all its null communities.
 All random draws are made before any parallel computation, so call
-[set.seed()] first for reproducible results, whatever `mc.cores`.
+\code{\link[=set.seed]{set.seed()}} first for reproducible results, whatever \code{mc.cores}.
 }
 \examples{
 web <- matrix(0, 5, 5, dimnames = rep(list(c("A", "B", "C", "D", "E")), 2))
@@ -80,5 +88,5 @@ res
 
 }
 \seealso{
-[plot_indic_null()] to plot the results.
+\code{\link[=plot_indic_null]{plot_indic_null()}} to plot the results.
 }

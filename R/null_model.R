@@ -20,7 +20,7 @@
 #' @param method Null model: `"equiprobable"` or `"frequency"`.
 #' @param n_null Number of null communities per site.
 #' @param indices Indices to report. By default all indices except those fixed
-#'   by site richness (`Species`, `Link_max`, `redundancy`).
+#'   by site richness (`Species`, `Species_taxa`, `Link_max`).
 #' @param observed Optional output of [get_indic_cells()] for the same
 #'   `P_A_data`, to avoid recomputing the observed indices.
 #'
@@ -53,24 +53,27 @@
 #' @export
 get_indic_null <- function(P_A_data, Lniche,
                            method = c("equiprobable", "frequency"),
-                           n_null = 100, indices = NULL, mc.cores = 1, observed = NULL) {
+                           n_null = 100, indices = NULL, mc.cores = 1, observed = NULL,
+                           min_species_tl = 50) {
   method <- match.arg(method)
   Lniche <- check_metaweb(Lniche, "Lniche")
+  check_count(min_species_tl, "min_species_tl", min = 0)
   pa <- prepare_sites(P_A_data, Lniche)
   if (is.null(observed)) {
-    observed <- compute_site_indices(pa, Lniche, mc.cores)
+    observed <- compute_site_indices(pa, Lniche, mc.cores, min_species_tl)
   }
-  null_model_indices(pa, Lniche, method, n_null, indices, mc.cores, observed)
+  null_model_indices(pa, Lniche, method, n_null, indices, mc.cores, observed, min_species_tl)
 }
 
-null_model_indices <- function(pa, Lniche, method, n_null, indices, mc.cores, observed) {
+null_model_indices <- function(pa, Lniche, method, n_null, indices, mc.cores, observed,
+                               min_species_tl = 50) {
   check_count(n_null, "n_null", min = 2)
   if (!is.data.frame(observed) || !identical(as.character(observed$site), rownames(pa))) {
     stop("`observed` must be the output of get_indic_cells() for the same sites.", call. = FALSE)
   }
   obs <- as.matrix(observed[, setdiff(names(observed), "site"), drop = FALSE])
   if (is.null(indices)) {
-    indices <- setdiff(colnames(obs), c("Species", "Link_max", "redundancy"))
+    indices <- setdiff(colnames(obs), c("Species", "Species_taxa", "Link_max"))
   }
   unknown <- setdiff(indices, colnames(obs))
   if (length(unknown) > 0) {
@@ -97,7 +100,7 @@ null_model_indices <- function(pa, Lniche, method, n_null, indices, mc.cores, ob
   })
 
   null_values <- run_parallel(seq_along(draws), function(i) {
-    bind_indices(lapply(draws[[i]], web_indices, Lniche = Lniche))
+    bind_indices(lapply(draws[[i]], web_indices, Lniche = Lniche, min_species_tl = min_species_tl))
   }, mc.cores)
 
   out <- lapply(seq_len(nrow(pa)), function(i) {

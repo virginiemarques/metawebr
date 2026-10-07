@@ -12,7 +12,7 @@ test_that("null model output is well formed and reproducible", {
   expect_identical(r1, r2)
   expect_named(r1, c("site", "index", "observed", "null_mean", "null_sd", "ses", "p_value"))
   expect_setequal(r1$site, c("s1", "s2", "s3"))
-  expect_false(any(c("Species", "Link_max", "redundancy") %in% r1$index))
+  expect_false(any(c("Species", "Species_taxa", "Link_max") %in% r1$index))
   expect_true(all(r1$p_value > 0 & r1$p_value <= 1, na.rm = TRUE))
 })
 

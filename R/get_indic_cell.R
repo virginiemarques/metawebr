@@ -15,6 +15,8 @@
 #'   model passed to [get_indic_null()]: `"equiprobable"` or `"frequency"`.
 #' @param n_null Number of null communities per site, when `null_model` is not
 #'   `"none"`.
+#' @param min_species_tl Minimum number of taxa (producers excluded) for
+#'   `Planktivores`, `HTI` and `MTI`; smaller webs get `NA`.
 #'
 #' @details Taxa of `P_A_data` absent from `Lniche` are dropped with a warning.
 #'
@@ -22,23 +24,27 @@
 #' * `Species`: number of nodes, producers included. `Connectance_p`: sum of
 #'   link values / `Species`^2.
 #' * `Link`, `Link_max`, `Connectance`, `b_power_law`: number of links, nodes^2,
-#'   their ratio, and \eqn{\log_2 L / (\log_2 S - 1)}.
-#' * `Ntop`, `Nbas`, `Nint`: fractions of top (no predator, at least one prey),
-#'   basal (at most one prey) and intermediate taxa, producers excluded.
+#'   their ratio, and \eqn{\log_2 L / (\log_2 S - 1)}, producers included.
+#' * `Species_taxa`, `Link_taxa`, `Connectance_taxa`: the same without the
+#'   producer nodes (links among taxa only, divided by `Species_taxa`^2).
+#' * `Ntop`, `Nbas`, `Nint`: fractions of basal taxa (no prey among the taxa,
+#'   i.e. eating only producers or nothing), top taxa (not basal, no
+#'   predator) and intermediate taxa (the others), producers excluded. They
+#'   sum to 1.
 #' * `Vul`, `Vulsd`, `Gen`, `Gensd`: mean and sd of the number of predators
 #'   (vulnerability) and prey (generality), producers excluded.
 #' * `TL_moy`, `length_chain`, `Omn_moy`: mean trophic level, maximum trophic
 #'   level rounded up, mean omnivory index.
 #' * `Planktivores`, `HTI`, `MTI`: fraction of taxa with a trophic level in
-#'   (2.4, 3.7), fraction above 4, mean trophic level of taxa above 3.25.
-#'   Only for webs with more than 50 nodes, otherwise `NA`.
+#'   (2.4, 3.7), fraction above 4, mean trophic level of taxa above 3.25,
+#'   producers excluded. Only for webs with more than `min_species_tl` taxa,
+#'   otherwise `NA`.
 #' * `Modularity` (walktrap communities), `Diameter`, `Din_*` / `Dout_*`
 #'   (in- and out-degree mean, min, max), `Closeness_*`,
 #'   `Nb_articulate_point`, `Transitivity`, `Coreness_*`.
 #' * `Mean_path_length` and `Shortest_path_1` to `Shortest_path_5`: mean
 #'   shortest path and fraction of shortest paths of each length (`NA` when
 #'   there is none).
-#' * `redundancy`: not implemented yet, always 0.
 #'
 #' @return If `null_model = "none"`, a data frame with one row per site: a
 #'   `site` column followed by the indices. Otherwise a list with `indices`
@@ -47,16 +53,18 @@
 #' @export
 get_indic_cells <- function(P_A_data, Lniche, mc.cores = 1,
                             null_model = c("none", "equiprobable", "frequency"),
-                            n_null = 100) {
+                            n_null = 100, min_species_tl = 50) {
   null_model <- match.arg(null_model)
   Lniche <- check_metaweb(Lniche, "Lniche")
+  check_count(min_species_tl, "min_species_tl", min = 0)
   pa <- prepare_sites(P_A_data, Lniche)
-  indices <- compute_site_indices(pa, Lniche, mc.cores)
+  indices <- compute_site_indices(pa, Lniche, mc.cores, min_species_tl)
   if (null_model == "none") return(indices)
 
   list(indices = indices,
        null_model = null_model_indices(pa, Lniche, method = null_model, n_null = n_null,
-                                       indices = NULL, mc.cores = mc.cores, observed = indices))
+                                       indices = NULL, mc.cores = mc.cores, observed = indices,
+                                       min_species_tl = min_species_tl))
 }
 
 # Logical site x taxon matrix restricted to the taxa of the metaweb
@@ -87,9 +95,9 @@ prepare_sites <- function(P_A_data, Lniche) {
 }
 
 # Indices of the food web formed by `taxa`, or NULL for an empty web
-web_indices <- function(taxa, Lniche) {
+web_indices <- function(taxa, Lniche, min_species_tl = 50) {
   if (length(taxa) == 0) return(NULL)
-  Calc_indic_proba(Lniche[taxa, taxa, drop = FALSE])
+  Calc_indic_proba(Lniche[taxa, taxa, drop = FALSE], min_species_tl = min_species_tl)
 }
 
 # Row-bind index vectors, filling empty webs (NULL) with NA
@@ -100,70 +108,73 @@ bind_indices <- function(res) {
   do.call(rbind, lapply(res, function(x) if (is.null(x)) empty else x))
 }
 
-compute_site_indices <- function(pa, Lniche, mc.cores = 1) {
+compute_site_indices <- function(pa, Lniche, mc.cores = 1, min_species_tl = 50) {
   res <- run_parallel(seq_len(nrow(pa)), function(i) {
-    web_indices(colnames(pa)[pa[i, ]], Lniche)
+    web_indices(colnames(pa)[pa[i, ]], Lniche, min_species_tl)
   }, mc.cores)
   data.frame(site = rownames(pa), bind_indices(res), row.names = NULL, check.names = FALSE)
 }
 
 # Indices of one food web
-Calc_indic_proba <- function(x, bin_threshold = 1) {
+Calc_indic_proba <- function(x, bin_threshold = 1, min_species_tl = 50) {
   Species <- nrow(x)
   Connectance_p <- sum(x) / Species^2
 
   bin_net <- (round(x, 3) >= bin_threshold) * 1
-  binary_indic <- get_binary_indic(web = bin_net, S = Species)
+  binary_indic <- get_binary_indic(web = bin_net, S = Species, min_species_tl = min_species_tl)
 
   g <- igraph::graph_from_adjacency_matrix(bin_net, mode = "directed")
   igraph_res <- Calc_indic_igraph(g)
   Path_stat <- get_path_stats(g)
 
-  c(Species = Species, Connectance_p = Connectance_p, binary_indic, igraph_res, Path_stat,
-    redundancy = 0)
+  c(Species = Species, Connectance_p = Connectance_p, binary_indic, igraph_res, Path_stat)
 }
 
 # Trophic-level and link-based indices of a binary web (prey in rows)
-get_binary_indic <- function(web, S = nrow(web)) {
+get_binary_indic <- function(web, S = nrow(web), min_species_tl = 50) {
   TL <- trophic_levels(web)
   length_chain <- ceiling(round(max(TL$TL), 1))
   TL_moy <- mean(TL$TL)
   Omn_moy <- mean(TL$OI)
-  if (nrow(TL) > 50) {
-    # Binary webs often give trophic levels exactly on a cut-off (e.g. 3.25);
-    # rounding avoids classifying them by floating-point noise
-    tl <- round(TL$TL, 10)
-    Plankt <- sum(tl > 2.4 & tl < 3.7) / nrow(TL)  # proportion of planktivores
-    HTI <- sum(tl > 4) / nrow(TL)  # High Trophic level Indicator
-    MTI <- mean(TL$TL[tl > 3.25])
-  } else {
-    Plankt <- HTI <- MTI <- NA
-  }
 
   Link <- sum(web)
   Link_max <- nrow(web)^2
   Connectance <- Link / Link_max
   b <- log2(Link) / (log2(S) - 1)  # exponent of the link-species scaling
 
-  # Top / basal / intermediate taxa and degrees, without the producer nodes
+  # Indices of the taxa, without the producer nodes
   is_taxon <- !rownames(web) %in% producer_names
-  web <- web[is_taxon, is_taxon, drop = FALSE]
-  if (nrow(web) > 1) {
-    Nprey <- colSums(web)  # number of prey of each taxon
-    Npred <- rowSums(web)  # number of predators of each taxon
-    S <- nrow(web)
+  taxa_web <- web[is_taxon, is_taxon, drop = FALSE]
+  S_taxa <- nrow(taxa_web)
+  Link_taxa <- sum(taxa_web)
+  Connectance_taxa <- if (S_taxa > 0) Link_taxa / S_taxa^2 else NA
+
+  if (S_taxa > min_species_tl) {
+    # Binary webs often give trophic levels exactly on a cut-off (e.g. 3.25);
+    # rounding avoids classifying them by floating-point noise
+    tl_taxa <- TL$TL[is_taxon]
+    tl <- round(tl_taxa, 10)
+    Plankt <- sum(tl > 2.4 & tl < 3.7) / S_taxa  # proportion of planktivores
+    HTI <- sum(tl > 4) / S_taxa  # High Trophic level Indicator
+    MTI <- mean(tl_taxa[tl > 3.25])
   } else {
-    Npred <- Nprey <- NA
-    S <- 1
+    Plankt <- HTI <- MTI <- NA
   }
-  Ntop <- sum(Npred == 0 & Nprey >= 1) / S
-  Nbas <- sum(Npred >= 0 & Nprey <= 1) / S
-  Nint <- 1 - (Ntop + Nbas)
+
+  # Basal: no prey among the taxa; top: not basal and no predator
+  Nprey <- colSums(taxa_web)  # number of prey (taxa) of each taxon
+  Npred <- rowSums(taxa_web)  # number of predators of each taxon
+  basal <- Nprey == 0
+  top <- !basal & Npred == 0
+  Nbas <- sum(basal) / S_taxa
+  Ntop <- sum(top) / S_taxa
+  Nint <- sum(!basal & !top) / S_taxa
 
   Nprey <- Nprey[Nprey != 0]
   Npred <- Npred[Npred != 0]
 
   out <- c(Link = Link, Link_max = Link_max, Connectance = Connectance, b_power_law = b,
+           Species_taxa = S_taxa, Link_taxa = Link_taxa, Connectance_taxa = Connectance_taxa,
            Ntop = Ntop, Nbas = Nbas, Nint = Nint,
            Vul = mean(Npred), Vulsd = sd(Npred), Gen = mean(Nprey), Gensd = sd(Nprey),
            TL_moy = TL_moy, length_chain = length_chain, Omn_moy = Omn_moy,
