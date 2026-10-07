@@ -17,55 +17,60 @@ compare_metawebs(
 probabilities or 0/1 links.}
 
 \item{data_traits}{Optional traits with taxon names as row names. Their
-`CommonLengthEstim`, `TrophicLevel`, `DemersPelag` and `Herbivore`
-columns, when present, are added to the table.}
+\code{CommonLengthEstim}, \code{TrophicLevel}, \code{DemersPelag}, \code{Herbivore},
+\code{Herbivore_source}, \code{DepthMin} and \code{DepthMax} columns, when present, are
+added to the table.}
 
-\item{level}{`"pair"` (default) for one row per species pair, `"link"` for
-one row per changed link (each direction separately), or `"taxon"` for one
+\item{level}{\code{"pair"} (default) for one row per species pair, \code{"link"} for
+one row per changed link (each direction separately), or \code{"taxon"} for one
 row per taxon.}
 
-\item{min_proba}{Pair and link levels: changed links below `min_proba` both
+\item{min_proba}{Pair and link levels: changed links below \code{min_proba} both
 before and after are not listed, to hide negligible probabilities. Use 0 to
 list every change.}
 }
 \value{
-With `level = "pair"`, a data frame with one row per pair of taxa
-  where at least one direction changed, each pair appearing once. Columns:
-  `taxon_1`, `taxon_2`; `t1_eats_t2_before`, `t1_eats_t2_after`,
-  `t1_eats_t2_correction` for taxon 1 eating taxon 2; the same three
-  `t2_eats_t1_*` columns for the other direction (`NA` when taxon 1 and 2 are
-  the same, i.e. cannibalism); then the traits of both taxa (`t1_*`, `t2_*`).
-  Rows are sorted by the highest probability, before correction, of their
-  changed links.
+With \code{level = "pair"}, a data frame with one row per pair of taxa
+where at least one direction changed, each pair appearing once. Columns:
+\code{taxon_1}, \code{taxon_2}; \code{t1_eats_t2_before}, \code{t1_eats_t2_after},
+\code{t1_eats_t2_correction}, \code{t1_eats_t2_source} for taxon 1 eating taxon 2;
+the same four
+\verb{t2_eats_t1_*} columns for the other direction (\code{NA} when taxon 1 and 2 are
+the same, i.e. cannibalism); then the traits of both taxa (\verb{t1_*}, \verb{t2_*}).
+Rows are sorted by the highest probability, before correction, of their
+changed links.
 
-  With `level = "link"`, a data frame sorted by decreasing `before`, with the
-  columns `prey`, `predator`, `before`, `after`, `change` (`"removed"`,
-  `"added"` or `"modified"`) and `correction`, then the traits of the prey
-  (`prey_*`) and of the predator (`predator_*`).
+With \code{level = "link"}, a data frame sorted by decreasing \code{before}, with the
+columns \code{prey}, \code{predator}, \code{before}, \code{after}, \code{change} (\code{"removed"},
+\code{"added"} or \code{"modified"}), \code{correction} and \code{source}, then the traits of
+the prey
+(\verb{prey_*}) and of the predator (\verb{predator_*}).
 
-  With `level = "taxon"`, a data frame with one row per taxon: `taxon`,
-  `prey_before`, `prey_after`, `predators_before` and `predators_after` (sums
-  of link values: numbers of links for 0/1 metawebs, expected numbers for
-  probabilities), one `prey_change_<correction>` column per correction (change
-  in prey, negative when prey were lost; `prey_change_other` for changes
-  without a recorded correction), then the traits. All links are used at this
-  level, whatever `min_proba`.
+With \code{level = "taxon"}, a data frame with one row per taxon: \code{taxon},
+\code{prey_before}, \code{prey_after}, \code{predators_before} and \code{predators_after} (sums
+of link values: numbers of links for 0/1 metawebs, expected numbers for
+probabilities), one \verb{prey_change_<correction>} column per correction (change
+in prey, negative when prey were lost; \code{prey_change_other} for changes
+without a recorded correction), then the traits. All links are used at this
+level, whatever \code{min_proba}.
 }
 \description{
 Lists the interactions that differ between two metawebs, e.g. before and
-after [correct_metaweb_fish()], so you can check them by hand or export them
+after \code{\link[=correct_metaweb_fish]{correct_metaweb_fish()}}, so you can check them by hand or export them
 to a spreadsheet.
 }
 \details{
-When `after` was returned by [correct_metaweb_fish()] and `before` is the
+When \code{after} was returned by \code{\link[=correct_metaweb_fish]{correct_metaweb_fish()}} and \code{before} is the
 metaweb it corrected, the correction columns give the last correction that
-changed each link: `"herbivory"`, `"water_position"`, `"cannibalism"`,
-`"small_fish"`, `"producers"` or `"big_fish"`. They are `NA` for unchanged
-links and for changes made by any other step, such as binarisation or manual
-edits.
+changed each link: \code{"herbivory"}, \code{"water_position"}, \code{"cannibalism"},
+\code{"depth"}, \code{"small_fish"}, \code{"producers"} or \code{"big_fish"}, and the source
+columns the data it was based on (e.g. \code{"diet_items"} or \code{"trophic_level"}
+for herbivory, \code{"DemersPelag"} for water position). They are \code{NA} for
+unchanged links and for changes made by any other step, such as binarisation
+or manual edits.
 
 Taxa present in only one of the metawebs, such as the producer nodes added
-by [correct_metaweb_fish()], count as having links of 0 in the other.
+by \code{\link[=correct_metaweb_fish]{correct_metaweb_fish()}}, count as having links of 0 in the other.
 }
 \examples{
 traits <- data.frame(

@@ -4,7 +4,14 @@
 \alias{set_herbivores}
 \title{Set which taxa are treated as herbivores}
 \usage{
-set_herbivores(data_traits, add = NULL, remove = NULL, threshold = 2.4)
+set_herbivores(
+  data_traits,
+  add = NULL,
+  remove = NULL,
+  threshold = 2.4,
+  source = NULL,
+  ...
+)
 }
 \arguments{
 \item{data_traits}{Traits with taxon names as row names.}
@@ -13,22 +20,40 @@ set_herbivores(data_traits, add = NULL, remove = NULL, threshold = 2.4)
 
 \item{remove}{Taxa not to treat as herbivores.}
 
-\item{threshold}{Trophic level below which taxa are herbivores, used when
-creating the `Herbivore` column.}
+\item{threshold}{Trophic level below which taxa are herbivores, used for
+\code{source = "trophic_level"} and for taxa without FishBase diet data.}
+
+\item{source}{\code{NULL}, \code{"trophic_level"} or \code{"fishbase"}: how to build the
+\code{Herbivore} column (see Details).}
+
+\item{...}{Passed to \code{\link[=get_herbivores_fishbase]{get_herbivores_fishbase()}} when \code{source = "fishbase"}.}
 }
 \value{
-`data_traits` with a logical `Herbivore` column.
+\code{data_traits} with a logical \code{Herbivore} column and a
+\code{Herbivore_source} column.
 }
 \description{
-By default, [correct_metaweb_fish()] treats taxa with a trophic level below
-`threshold` as herbivores: they get no fish prey and feed on primary
-producers. Trophic levels from FishBase can misclassify some taxa, so
-`set_herbivores()` stores the choice in a logical `Herbivore` column of the
-trait table, which [correct_metaweb_fish()] uses when present.
+\code{\link[=correct_metaweb_fish]{correct_metaweb_fish()}} treats herbivores differently: they get no fish
+prey and feed on primary producers. \code{set_herbivores()} stores which taxa are
+herbivores in a logical \code{Herbivore} column of the trait table, which
+\code{\link[=correct_metaweb_fish]{correct_metaweb_fish()}} uses when present, and where the decision came from
+in a \code{Herbivore_source} column. The source is recorded for every link the
+herbivory correction changes (see \code{\link[=compare_metawebs]{compare_metawebs()}}).
 }
 \details{
-If `data_traits` has no `Herbivore` column yet, it is first created from the
-trophic level (`TrophicLevel < threshold`).
+The \code{Herbivore} column is built from:
+\itemize{
+\item \code{source = "trophic_level"}: taxa with a trophic level below \code{threshold}
+(source \code{"trophic_level"});
+\item \code{source = "fishbase"}: FishBase diet data, see
+\code{\link[=get_herbivores_fishbase]{get_herbivores_fishbase()}} (sources \code{"diet_items"} and
+\code{"feeding_type"}), and the trophic level for taxa without diet data
+(source \code{"trophic_level"}).
+}
+
+With \code{source = NULL} (default), an existing \code{Herbivore} column is kept, and
+a missing one is built from the trophic level. Then \code{add} and \code{remove} are
+applied (source \code{"manual"}).
 }
 \examples{
 traits <- data.frame(
@@ -36,5 +61,8 @@ traits <- data.frame(
   row.names = c("Sarpa_salpa", "Scarus_iseri", "Coris_julis")
 )
 set_herbivores(traits, remove = "Scarus_iseri")
+\dontrun{
+set_herbivores(df_traits_obis, source = "fishbase")
+}
 
 }

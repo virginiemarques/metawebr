@@ -11,24 +11,29 @@ correct_metaweb_fish(
   water_pos = TRUE,
   small_fish = TRUE,
   PP_SP_add = TRUE,
-  exception_BigFish = TRUE
+  exception_BigFish = TRUE,
+  depth_overlap = FALSE,
+  depth_tolerance = 0
 )
 }
 \arguments{
-\item{data_meta}{Metaweb from [apply_model_metaweb()] (prey in rows,
+\item{data_meta}{Metaweb from \code{\link[=apply_model_metaweb]{apply_model_metaweb()}} (prey in rows,
 predators in columns).}
 
 \item{data_traits}{Traits with taxon names as row names, containing every
-taxon of `data_meta`. Needs `TrophicLevel`, `CommonLengthEstim` (cm) and
-`DemersPelag`, or only those used by the selected corrections. An optional
-logical `Herbivore` column overrides the trophic-level rule for herbivores.}
+taxon of \code{data_meta}. Needs \code{TrophicLevel}, \code{CommonLengthEstim} (cm) and
+\code{DemersPelag}, or only those used by the selected corrections, and
+\code{DepthMin} and \code{DepthMax} for \code{depth_overlap}. An optional logical
+\code{Herbivore} column overrides the trophic-level rule for herbivores.}
 
-\item{herbivory, water_pos, small_fish, PP_SP_add, exception_BigFish}{Logical:
-apply this correction?}
+\item{herbivory, water_pos, depth_overlap, small_fish, PP_SP_add, exception_BigFish}{Logical: apply this correction?}
+
+\item{depth_tolerance}{Depth ranges closer than this (m) count as
+overlapping, for \code{depth_overlap}.}
 }
 \value{
-The corrected matrix. With `PP_SP_add = TRUE` it has two extra rows
-  and columns, `PrimaryProducer` and `SecondaryProducer`.
+The corrected matrix. With \code{PP_SP_add = TRUE} it has two extra rows
+and columns, \code{PrimaryProducer} and \code{SecondaryProducer}.
 }
 \description{
 The body-size model alone predicts some implausible links. This function
@@ -36,27 +41,36 @@ removes or rewires them using the traits of each taxon. Corrections are
 applied in this order:
 }
 \details{
-* `herbivory`: herbivores eat no other taxa. Herbivores are taxa with a
-  trophic level below 2.4, unless `data_traits` has a `Herbivore` column
-  (see [set_herbivores()]). The message lists the taxa treated as
-  herbivores so you can check them.
-* `water_pos`: removes links between taxa living in incompatible parts of
-  the water column (column `DemersPelag`, e.g. bathydemersal vs.
-  pelagic-oceanic), and removes cannibalism.
-* `small_fish`: taxa shorter than 10 cm eat no other taxa.
-* `PP_SP_add`: adds `PrimaryProducer` and `SecondaryProducer` nodes.
-  Herbivores eat primary producers; taxa with a trophic level in (2.4, 3.7]
-  and small fish eat secondary producers; secondary producers eat primary
-  producers and themselves.
-* `exception_BigFish`: taxa longer than 100 cm with a trophic level in
-  (2.4, 3.7), such as large planktivorous sharks, eat only secondary
-  producers. Requires the producer nodes.
+\itemize{
+\item \code{herbivory}: herbivores eat no other taxa. Herbivores are taxa with a
+trophic level below 2.4, unless \code{data_traits} has a \code{Herbivore} column
+(see \code{\link[=set_herbivores]{set_herbivores()}}, which can also use FishBase diet data). The
+message lists the taxa treated as herbivores so you can check them.
+\item \code{water_pos}: removes links between taxa living in incompatible parts of
+the water column (column \code{DemersPelag}, e.g. bathydemersal vs.
+pelagic-oceanic), and removes cannibalism.
+\item \code{depth_overlap}: removes links between taxa whose depth ranges
+(\code{DepthMin}, \code{DepthMax}, in m, see \code{\link[=add_depth_range]{add_depth_range()}}) don't overlap,
+allowing a gap of \code{depth_tolerance} m. Off by default.
+\item \code{small_fish}: taxa shorter than 10 cm eat no other taxa.
+\item \code{PP_SP_add}: adds \code{PrimaryProducer} and \code{SecondaryProducer} nodes.
+Herbivores eat primary producers; taxa with a trophic level in (2.4, 3.7]
+and small fish eat secondary producers; secondary producers eat primary
+producers and themselves.
+\item \code{exception_BigFish}: taxa longer than 100 cm with a trophic level in
+(2.4, 3.7), such as large planktivorous sharks, eat only secondary
+producers. Requires the producer nodes.
+}
 
 Taxa with a missing trait are left untouched by the corrections that use
 it, with a warning.
 
-The correction that changed each link is recorded in the result; see
-[compare_metawebs()] to list the changed links for manual checks.
+Each link changed is recorded in the result with the correction that
+changed it and the data it was based on (\code{source}): for herbivory, the
+\code{Herbivore_source} of the predator (\code{"trophic_level"}, \code{"diet_items"},
+\code{"feeding_type"}, \code{"manual"}); otherwise the trait columns used, such as
+\code{"DemersPelag"}, or \code{"rule"} for fixed rules. See \code{\link[=compare_metawebs]{compare_metawebs()}} to
+list the changed links for manual checks.
 }
 \examples{
 traits <- data.frame(
@@ -71,6 +85,6 @@ compare_metawebs(mw, mw_corr, traits)
 
 }
 \seealso{
-[set_herbivores()] to change which taxa are treated as herbivores,
-  [compare_metawebs()] to check the changed links.
+\code{\link[=set_herbivores]{set_herbivores()}} to change which taxa are treated as herbivores,
+\code{\link[=add_depth_range]{add_depth_range()}}, \code{\link[=compare_metawebs]{compare_metawebs()}} to check the changed links.
 }
