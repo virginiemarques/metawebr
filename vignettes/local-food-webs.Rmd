@@ -1,0 +1,322 @@
+---
+title: "Local food webs and their indices"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Local food webs and their indices}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  dpi = 90
+)
+```
+
+```{r load}
+library(metawebr)
+library(ggplot2)
+```
+
+## Overview
+
+A metaweb lists every feeding link that could exist among the taxa of a
+region. A *local* food web is the part of the metaweb formed by the taxa found
+together at one site, for example in an eDNA sample or a survey: a link is kept
+when both taxa occur at the site. This vignette builds local food webs,
+computes their network indices, compares them with null models and plots them.
+
+| Step | What happens | Function(s) |
+|------|--------------|-------------|
+| 1 | Match the site data to the metaweb | `rename_taxa()` |
+| 2 | Build the site × taxon matrix | `make_species_station_matrix()` |
+| 3 | Compute local indices | `get_indic_cells()` |
+| 4 | Compare indices with null models | `get_indic_null()`, `plot_indic_null()` |
+| 5 | Plot local food webs | `plot_tree_network()`, `plot_network_focus_sp()`, `plot_network_interactive()` |
+
+It starts from a binary metaweb. Building and curating one is covered in
+`vignette("metaweb", package = "metawebr")`; the metaweb built there is shipped
+as `metaweb_obis`:
+
+```{r metaweb}
+mw_bin <- metaweb_obis
+dim(mw_bin)
+sum(mw_bin)  # number of links
+mw_bin[c("Chromis_chromis", "Coris_julis"), c("Muraena_helena", "Serranus_scriba")]
+```
+
+As everywhere in the package, **rows are prey and columns are predators**:
+`mw_bin["Coris_julis", "Muraena_helena"] == 1` means that the moray eel eats
+the wrasse.
+
+## 1. Site data and taxon names
+
+`df_presence_obis` lists the fish recorded at six sites from OBIS data: three
+Mediterranean rocky reefs (Marseille, Medes Islands, Port-Cros) and three
+tropical western Atlantic coral reefs (Florida Keys, Belize Barrier Reef,
+Bonaire). It is in long format, one row per site and species, with a count.
+
+```{r presence}
+head(df_presence_obis)
+table(df_presence_obis$station)
+```
+
+Local webs can only contain taxa that are in the metaweb, under the same name.
+Check which detected taxa are missing:
+
+```{r missing}
+setdiff(unique(df_presence_obis$species), rownames(mw_bin))
+```
+
+*Equetus punctatus* is not in FishBase and was left out of the metaweb. With
+your own data, missing names are often synonyms or spelling variants: harmonise
+the site data with the same names as the metaweb before going further:
+
+```{r harmonise, eval = FALSE}
+harm <- harmonise_taxa(unique(detections$taxon))
+detections <- rename_taxa(detections, "taxon", harm)
+```
+
+## 2. Site × taxon matrix
+
+`make_species_station_matrix()` turns long detection data (one row per site ×
+taxon, with a count such as eDNA reads or records) into a binary site × taxon
+matrix. Taxa detected several times at a site, or several names merged by
+`rename_taxa()`, are summed. It also adds the two producer nodes
+(`PrimaryProducer`, `SecondaryProducer`) to every site, since primary
+production and invertebrates are assumed present everywhere.
+
+```{r stations}
+pa <- make_species_station_matrix(df_presence_obis,
+                                  station_col = "station",
+                                  species_col = "species",
+                                  count_col = "count")
+dim(pa)
+pa[, c("Coris_julis", "Thalassoma_bifasciatum", "PrimaryProducer")]
+```
+
+`get_indic_cells()` drops taxa that are absent from the metaweb, with a
+warning. We drop *Equetus punctatus* explicitly:
+
+```{r stations-filter}
+pa <- pa[, colnames(pa) %in% rownames(mw_bin)]
+```
+
+## 3. Local indices
+
+`get_indic_cells()` extracts the local web of each site and returns one row per
+site with about 45 indices. Its `mc.cores` argument runs sites in parallel (not
+supported on Windows).
+
+```{r indices}
+indices <- get_indic_cells(P_A_data = pa, Lniche = mw_bin)
+
+cols <- c("Species_taxa", "Link_taxa", "Connectance_taxa", "TL_moy", "length_chain",
+          "Omn_moy", "Nbas", "Nint", "Ntop", "Modularity")
+cbind(site = indices$site, round(indices[, cols], 3))
+```
+
+The indices fall into four groups:
+
+| Group | Index | Meaning |
+|-------|-------|---------|
+| Size and links | `Species`, `Link`, `Connectance` | Number of nodes (including the two producer nodes), number of links, and links / nodes² |
+| | `Species_taxa`, `Link_taxa`, `Connectance_taxa` | The same without the producer nodes |
+| | `Connectance_p`, `b_power_law` | Connectance from link values, and the exponent of the link–species scaling |
+| Trophic structure | `TL_moy`, `length_chain` | Mean trophic level, and maximum trophic level rounded up |
+| | `Omn_moy` | Mean omnivory index (spread of the trophic levels of the prey) |
+| | `Nbas`, `Nint`, `Ntop` | Fractions of basal (no prey among the taxa: eat only producers), intermediate, and top (not basal, no predator) taxa; they sum to 1 |
+| | `Planktivores`, `HTI`, `MTI` | Share of taxa with a trophic level in (2.4, 3.7), share above 4, and mean trophic level of taxa above 3.25, producers excluded. Only for webs with more than `min_species_tl` taxa (default 50), otherwise `NA` |
+| Links per taxon | `Vul`, `Vulsd`, `Gen`, `Gensd` | Mean and sd of the number of predators (vulnerability) and of prey (generality) |
+| | `Din_*`, `Dout_*` | Mean, min and max in- and out-degree |
+| Network shape | `Modularity` | Modularity of walktrap communities (`igraph`) |
+| | `Mean_path_length`, `Shortest_path_k`, `Diameter` | Mean shortest path, share of shortest paths of length *k*, longest shortest path |
+| | `Transitivity`, `Closeness_*`, `Coreness_*`, `Nb_articulate_point` | Clustering, closeness, k-core and articulation-point statistics |
+
+See `?get_indic_cells` for the exact definitions.
+
+The sites here hold 40 species each, below the default `min_species_tl = 50`,
+so `Planktivores`, `HTI` and `MTI` are `NA`. These shares are unstable in small
+webs; lower the cut-off only if you accept that:
+
+```{r indices-tl}
+indices_tl <- get_indic_cells(pa, mw_bin, min_species_tl = 30)
+cbind(site = indices_tl$site, round(indices_tl[, c("Planktivores", "HTI", "MTI")], 3))
+```
+
+Comparing the two regions:
+
+```{r indices-plot, fig.height = 4}
+region <- setNames(df_presence_obis$region, df_presence_obis$station)
+long <- data.frame(
+  site = indices$site,
+  region = unname(region[indices$site]),
+  index = rep(c("Connectance_taxa", "TL_moy", "Omn_moy", "Modularity"), each = nrow(indices)),
+  value = unlist(indices[, c("Connectance_taxa", "TL_moy", "Omn_moy", "Modularity")], use.names = FALSE)
+)
+ggplot(long, aes(region, value, colour = region)) +
+  geom_point(size = 3) +
+  facet_wrap(~index, scales = "free_y", nrow = 1) +
+  labs(x = NULL, y = NULL) +
+  theme_bw() +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+Raw indices are hard to compare between sites with different numbers of
+species, because many of them change with richness. Null models address this.
+
+## 4. Null models
+
+Many indices change with the number of species, so raw values are hard to
+compare between sites. A null model asks whether a local web is more or less
+connected, modular, etc. than expected for a random community of the same
+richness, drawn from the regional pool.
+
+`get_indic_null()` builds `n_null` random communities per site, keeping the
+site's richness and its producer nodes, and computes the same indices. For each
+index it reports:
+
+* the null mean and standard deviation;
+* the standardised effect size, `ses = (observed − null_mean) / null_sd`.
+  Values below −1.96 or above 1.96 are roughly significant at 5 %;
+* a two-sided, rank-based `p_value`.
+
+Two methods are available:
+
+* `"equiprobable"`: every taxon of the pool is equally likely to be drawn;
+* `"frequency"`: taxa are drawn in proportion to the number of sites where they
+  occur, so common taxa appear more often.
+
+The pool is every taxon present in at least one site of `P_A_data`. Pooling the
+Mediterranean and Caribbean sites would put Caribbean species into
+Mediterranean null communities, so we run the null model separately for each
+region:
+
+```{r null-equiprobable}
+sites_by_region <- split(rownames(pa), region[rownames(pa)])
+
+set.seed(42)
+null_equi <- do.call(rbind, lapply(sites_by_region, function(sites) {
+  get_indic_null(pa[sites, ], mw_bin, method = "equiprobable", n_null = 199)
+}))
+rownames(null_equi) <- NULL
+
+res <- null_equi[null_equi$index %in% c("Connectance", "TL_moy"), ]
+cbind(res[, c("site", "index")], round(res[, c("observed", "null_mean", "ses", "p_value")], 3))
+```
+
+`plot_indic_null()` shows the effect sizes of several indices at once. Points
+are coloured when p < 0.05 and dashed lines mark SES = ±1.96:
+
+```{r null-plot, fig.width = 8, fig.height = 5.5}
+plot_indic_null(null_equi,
+                indices = c("Connectance", "TL_moy", "Omn_moy",
+                            "Modularity", "Mean_path_length", "Nbas"))
+```
+
+`get_indic_cells()` can compute the observed indices and the null model in one
+call. With `null_model = "none"` (the default) it returns the indices only;
+with a method it returns a list with `indices` and `null_model`. Here is the
+frequency-weighted model for the Mediterranean sites, compared with the
+equiprobable one:
+
+```{r null-frequency}
+set.seed(42)
+med <- get_indic_cells(pa[sites_by_region$Mediterranean, ], mw_bin,
+                       null_model = "frequency", n_null = 199)
+names(med)
+
+compare <- merge(null_equi[, c("site", "index", "ses")],
+                 med$null_model[, c("site", "index", "ses")],
+                 by = c("site", "index"), suffixes = c("_equiprobable", "_frequency"))
+compare[, c("ses_equiprobable", "ses_frequency")] <-
+  round(compare[, c("ses_equiprobable", "ses_frequency")], 2)
+compare[compare$index %in% c("Connectance", "TL_moy"), ]
+```
+
+`n_null = 199` keeps this vignette fast. Use 999 or more for published analyses.
+
+## 5. Plotting food webs
+
+`plot_tree_network()` draws a food web with each node's height set by its
+trophic level. Nodes are coloured by rounded trophic level and sized by number
+of prey. Horizontal positions are random, so set a seed for a reproducible
+layout. The result is a `ggplot`, so you can add titles and themes as usual.
+When nodes are crowded, some labels are left out.
+
+Use `sp_to_keep` to plot a local web. Trophic levels are still computed from the
+full metaweb, so node heights are comparable between sites:
+
+```{r plot-local, fig.width = 9, fig.height = 7, warning = FALSE}
+marseille <- df_presence_obis$species[df_presence_obis$station == "Marseille"]
+set.seed(1)
+plot_tree_network(mw_bin, sp_to_keep = marseille) + ggtitle("Marseille")
+```
+
+`plot_network_focus_sp()` zooms in on one or more focal taxa and their prey, up
+to `order_interaction` steps down the food chain (`2` adds the prey of the prey):
+
+```{r plot-focus, fig.width = 8, fig.height = 6, warning = FALSE}
+set.seed(1)
+plot_network_focus_sp(mw_bin, sp_focus = "Muraena_helena",
+                      order_interaction = 2, sp_to_keep = marseille) +
+  ggtitle("Moray eel and its prey in Marseille")
+```
+
+`plot_network_interactive()` draws the same layout as an interactive network
+(it needs the visNetwork package). Click a taxon to highlight its links and
+fade the rest of the web; hold Ctrl (Cmd on macOS) while clicking to select
+several taxa, or pick one by name in the menu. Click an empty area to clear
+the selection. Hover a taxon or a link for details, scroll to zoom and drag to
+pan. With `links = "prey"` or `links = "predators"` only one direction is
+highlighted:
+
+```{r plot-interactive, eval = requireNamespace("visNetwork", quietly = TRUE)}
+set.seed(1)
+plot_network_interactive(mw_bin, sp_to_keep = marseille, height = "600px")
+```
+
+The result is an htmlwidget, so you can save it as a stand-alone HTML file to
+share:
+
+```{r save-interactive, eval = FALSE}
+web <- plot_network_interactive(mw_bin, sp_to_keep = marseille)
+htmlwidgets::saveWidget(web, "marseille_foodweb.html")
+```
+
+## Good practice
+
+* **The metaweb gives potential links.** A local web keeps every link of the
+  metaweb between co-occurring taxa, whether or not it happens at that site.
+  Indices describe the potential structure of the community.
+* **Detection matters.** Taxa missed by the survey or the eDNA assay, and
+  taxa identified only to genus or family, change the local web. Report how
+  taxa were identified and harmonised.
+* **Producers are present everywhere.** The two producer nodes are added to
+  every site. Prefer the `*_taxa` indices when comparing sites with very
+  different numbers of fish.
+* **Compare with null models.** Use them before interpreting differences
+  between sites, with a regional pool that makes sense (here, one pool per
+  region), and 999 or more null communities for published analyses.
+* **Check sensitivity to the threshold.** Rebuild the binary metaweb at a few
+  thresholds around the chosen one (`correct_metaweb_proba(threshold = )`) and
+  check that your conclusions hold.
+
+## References
+
+* Gravel, D., Poisot, T., Albouy, C., Velez, L. & Mouillot, D. (2013). Inferring
+  food web structure from predator–prey body size relationships.
+  *Methods in Ecology and Evolution*, 4, 1083–1090.
+* Albouy, C. et al. (2019). The marine fish food web is globally connected.
+  *Nature Ecology & Evolution*, 3, 1153–1161.
+* Froese, R. & Pauly, D. (eds.). FishBase. World Wide Web electronic publication, www.fishbase.org.
+* Rabosky, D.L. et al. (2018). An inverse latitudinal gradient in speciation
+  rate for marine fishes. *Nature*, 559, 392–395.
+* Stekhoven, D.J. & Bühlmann, P. (2012). MissForest: non-parametric missing
+  value imputation for mixed-type data. *Bioinformatics*, 28, 112–118.
+* OBIS. Ocean Biodiversity Information System. Intergovernmental Oceanographic
+  Commission of UNESCO. www.obis.org.

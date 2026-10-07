@@ -1,0 +1,514 @@
+---
+title: "Building and curating a fish metaweb"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Building and curating a fish metaweb}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5,
+  dpi = 90
+)
+```
+
+```{r load}
+library(metawebr)
+library(ggplot2)
+```
+
+## Overview
+
+A *metaweb* is the regional food web of all the taxa that could occur
+together: who could eat whom, whether or not they meet at a given site.
+`metawebr` infers it from body size, curates it with ecological rules and
+diet data, and checks it against observed feeding links. This vignette covers
+these steps. The companion vignette,
+`vignette("local-food-webs", package = "metawebr")`, extracts local food webs
+from the metaweb and computes their indices.
+
+| Step | What happens | Function(s) |
+|------|--------------|-------------|
+| 1 | Explore predator–prey body-size records | `df_interaction_fish` |
+| 2 | Calibrate the body-size niche model | `metaweb_mod_parameters()`, `get_fig_eval()` |
+| 3 | Harmonise taxon names | `harmonise_taxa()`, `rename_taxa()` |
+| 4 | Gather and clean traits | `get_traits()`, `infer_traits()`, `clean_traits()`, `impute_traits_phylo()` |
+| 5 | Predict interaction probabilities for every pair of taxa | `apply_model_metaweb()` |
+| 6 | Curate the metaweb with ecological rules and diet data | `set_herbivores()`, `add_depth_range()`, `correct_metaweb_fish()`, `compare_metawebs()` |
+| 7 | Choose a probability threshold and binarise | `get_proba()`, `correct_metaweb_proba()` |
+| 8 | Validate the size model and the metaweb | `cv_size_model()`, `validate_metaweb()`, `get_diet_links()` |
+
+The interaction model is the allometric niche model of Gravel et al. (2013).
+A predator of body length $L_{pred}$ feeds on prey whose length falls within a
+Gaussian niche. The niche optimum $o$ and width $r$ both scale with predator
+size (all lengths on a log10 scale):
+
+$$
+o = a_0 + a_1 \log_{10} L_{pred}, \qquad
+r = b_0 + b_1 \log_{10} L_{pred}, \qquad
+P(\text{link}) = \exp\left(-\frac{(o - \log_{10} L_{prey})^2}{2r^2}\right)
+$$
+
+FishBase data (traits, synonyms, diets, depth ranges) are downloaded once per
+R session. To keep them between sessions, set a cache folder:
+`options(metawebr.cache_dir = "~/fishbase_cache")` (see
+`?clear_fishbase_cache`). Steps that need an internet connection are shown but
+not run in this vignette; their output is pasted as comments.
+
+## 1. Predator–prey body-size data
+
+The package ships `df_interaction_fish`, a compilation of `r nrow(df_interaction_fish)`
+observed feeding events. Each row gives a predator, a prey and their lengths (cm).
+Only four columns are used for calibration:
+
+```{r data}
+data("df_interaction_fish")
+head(df_interaction_fish[, c("predator", "prey",
+                             "standardised_predator_length", "si_prey_length")])
+```
+
+On a log scale, prey size increases with predator size, and the spread of prey
+sizes widens too. The niche model captures exactly this pattern:
+
+```{r data-plot, fig.height = 4.5}
+ggplot(df_interaction_fish,
+       aes(standardised_predator_length, si_prey_length)) +
+  geom_point(alpha = 0.15, size = 0.8) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Predator length (cm, log scale)",
+       y = "Prey length (cm, log scale)") +
+  theme_minimal()
+```
+
+## 2. Calibrate the niche model
+
+`metaweb_mod_parameters()` removes duplicate records and caps each
+predator–prey pair at `observation_resample` observations, so that heavily
+sampled pairs don't dominate the fit. It then estimates $a_0, a_1, b_0, b_1$ by
+maximum likelihood, using simulated annealing (`GenSA`). With
+`data_path = NULL` it uses `df_interaction_fish`; you can also pass a data
+frame or the path of a CSV with the same columns.
+
+Calibration takes about two minutes and involves random down-sampling, so it is
+not run here:
+
+```{r calibrate, eval = FALSE}
+set.seed(1)
+params <- metaweb_mod_parameters(path_par_output = "params_metaweb.txt")
+params$calibrated_data
+```
+
+The other functions accept the parameters in three forms: the list returned
+by `metaweb_mod_parameters()`, the file it wrote, or a plain numeric vector.
+This vignette uses the values estimated from `df_interaction_fish`:
+
+```{r pars}
+pars <- c(a0 = -0.5616698, a1 = 0.9611534, b0 = 0.1247726, b1 = 0.1359744)
+```
+
+`get_fig_eval()` checks the fit for one predator. The left panel compares the
+sizes of that predator's observed prey with all prey sizes and with the
+predicted niche. The right panel shows the predicted link probability across
+the whole predator–prey size space, overlaid with the observations.
+
+```{r fit-eval, fig.width = 9, fig.height = 4.5}
+get_fig_eval(data = df_interaction_fish, target_sp = "Gadus morhua", pars = pars)
+```
+
+## 3. Example taxa and their names
+
+The metaweb is built for a list of taxa: here, the species of
+`df_presence_obis`, an example community dataset built from OBIS occurrence
+records since 2000. It holds the 40 most recorded fish species at each of six
+sites:
+
+* three Mediterranean rocky reefs: Marseille, Medes Islands, Port-Cros;
+* three tropical western Atlantic coral reefs: Florida Keys, Belize Barrier
+  Reef, Bonaire.
+
+```{r presence}
+data("df_presence_obis")
+head(df_presence_obis)
+table(df_presence_obis$region)
+```
+
+### Harmonising taxon names
+
+Names from eDNA reference databases (often NCBI taxonomy) or surveys don't
+always match FishBase: synonyms (*Liza aurata* is now *Chelon auratus*),
+spelling mistakes, `Genus sp.` assignments, subspecies. Unmatched names get no
+traits and are silently lost, so harmonise them first. `harmonise_taxa()`
+cleans each name, then looks it up in your own correction table (`lookup`),
+then in FishBase (accepted names and synonyms), and finally in WoRMS for the
+names still unresolved. The accepted FishBase name is the standard used by the
+rest of the package; the WoRMS AphiaID is kept for linking to other data.
+
+```{r harmonise, eval = FALSE}
+harm <- harmonise_taxa(c("Liza aurata", "Diplodus_sp.", "Gadus morua",
+                         "Pomatoschistus minutus/lozanoi", "uncultured fish"))
+harm[, c("input", "accepted", "status", "note")]
+#>                            input       accepted       status                        note
+#> 1                    Liza aurata Chelon_auratus      synonym                        <NA>
+#> 2                   Diplodus_sp.       Diplodus     accepted          sp. dropped: genus
+#> 3                    Gadus morua   Gadus_morhua  worms_fuzzy                        <NA>
+#> 4 Pomatoschistus minutus/lozanoi Pomatoschistus     accepted several species: genus kept
+#> 5                uncultured fish           <NA>  not_a_taxon                        <NA>
+
+# Replace the names in the detection table, keeping the originals
+detections <- rename_taxa(detections, "taxon", harm)
+```
+
+Check the names with status `worms_fuzzy` (spelling corrected), `ambiguous`
+and `unresolved`, and record your decisions in a `lookup` table
+(`data.frame(input = , accepted = )`) so the harmonisation is reproducible.
+
+## 4. Traits
+
+The model needs one row per taxon, with **row names set to the taxon names**,
+and these columns:
+
+* `CommonLengthEstim`: common length (cm). If FishBase has no common length,
+  it is estimated as 0.6 × maximum length.
+* `TrophicLevel`: the FishBase trophic level estimate. It is used by the
+  corrections and to choose the threshold.
+* `DemersPelag`: position in the water column (FishBase categories).
+
+`get_traits()` downloads these traits from FishBase through `rfishbase`.
+Taxon names must use underscores (`Coris_julis`). For eDNA taxa assigned only
+to a genus or a family, `infer_traits()` averages the traits of all FishBase
+species in that group.
+
+```{r traits-fishbase, eval = FALSE}
+df_traits_obis <- get_traits(df_presence_obis, column_species = "species")
+```
+
+The result is stored as `df_traits_obis`, so this vignette runs offline.
+`clean_traits()` reports missing values and fills them from other species of
+the same genus. By default it then removes taxa that still have missing traits.
+Here *Equetus punctatus* is not in FishBase and has no congener in the data, so
+it is removed:
+
+```{r traits}
+data("df_traits_obis")
+traits <- clean_traits(df_traits_obis)
+```
+
+`clean_traits()` only borrows values from congeners in your own table. A more
+thorough option is `impute_traits_phylo()`. It predicts missing values with
+random forests (missForest), using each species' position in the fish
+phylogeny as extra information. It repeats this over the 100 complete fish
+trees of Rabosky et al. (2018) and averages the results. It downloads the trees
+and takes a few minutes, so it is not run here:
+
+```{r traits-impute, eval = FALSE}
+set.seed(1)
+traits_imputed <- impute_traits_phylo(df_traits_obis, mc.cores = 4)
+traits_imputed[!is.na(traits_imputed$imputed), ]
+
+# Or in one step from taxon names: FishBase lookup, then imputation
+traits_obis <- infer_traits(unique(df_presence_obis$species), method = "100matrix",
+                            mc.cores = 4)
+```
+
+The fishtree trees cover ray-finned fishes only. To impute sharks and rays,
+pass your own trees with `trees =`.
+
+## 5. Predict interaction probabilities
+
+`apply_model_metaweb()` applies the calibrated model to every pair of taxa.
+In the resulting square matrix, **rows are prey and columns are predators**:
+`mw["Chromis_chromis", "Muraena_helena"]` is the probability that the moray
+eel eats the damselfish.
+
+```{r metaweb}
+mw <- apply_model_metaweb(traits, pars)
+dim(mw)
+round(mw[c("Chromis_chromis", "Coris_julis", "Diplodus_vulgaris"),
+         c("Muraena_helena", "Scorpaena_scrofa", "Coris_julis")], 2)
+```
+
+## 6. Curating the metaweb
+
+Size alone predicts some implausible links: a large herbivore "eating" small
+fish, or a deep-sea fish eating a reef fish. `correct_metaweb_fish()` applies
+six corrections, each of which can be switched off:
+
+* `herbivory`: herbivores have no fish prey. By default these are taxa with a
+  trophic level < 2.4; on these reefs, mostly parrotfishes, surgeonfishes and
+  damselfishes. They can also be set from FishBase diet data (see below).
+* `water_pos`: removes links between taxa that live in incompatible parts of the
+  water column (for example bathydemersal vs. pelagic-oceanic). It also removes
+  cannibalism.
+* `depth_overlap` (off by default): removes links between taxa whose depth
+  ranges don't overlap.
+* `small_fish`: taxa shorter than 10 cm have no fish prey.
+* `PP_SP_add`: adds two basal nodes, `PrimaryProducer` and `SecondaryProducer`,
+  as food for herbivores, planktivores and small fish.
+* `exception_BigFish`: large (> 100 cm) low-trophic-level taxa feed on
+  secondary producers only.
+
+```{r correct}
+mw_corr <- correct_metaweb_fish(data_meta = mw, data_traits = traits)
+dim(mw_corr)
+```
+
+Every link a correction changes is recorded, with the correction and the data
+it was based on (`source`), so you can see why each link was changed (see
+*Checking the corrections* below).
+
+### Herbivores
+
+The first message lists the taxa treated as herbivores. FishBase trophic levels
+can misclassify some taxa, so check this list. To change it, use
+`set_herbivores()`. It stores the classification in a `Herbivore` column of the
+trait table, which `correct_metaweb_fish()` then uses instead of the trophic
+level. For example, to stop treating the scrawled cowfish as a herbivore:
+
+```{r herbivores}
+traits_edited <- set_herbivores(traits, remove = "Acanthostracion_polygonium")
+sum(traits_edited$Herbivore)
+```
+
+You would then run `correct_metaweb_fish(mw, traits_edited)` again.
+
+The trophic level is an indirect criterion: FishBase estimates it partly from
+diet, and a cut-off at 2.4 misclassifies omnivores and detritivores.
+`set_herbivores(source = "fishbase")` uses FishBase diet data instead: the
+share of plant and detritus food items when a species has at least three
+records, otherwise its main feeding type (e.g. grazing or browsing on
+substrate). Taxa without diet data fall back on the trophic level. The
+`Herbivore_source` column records which criterion was used for each taxon:
+
+```{r herbivores-diet, eval = FALSE}
+traits_diet <- set_herbivores(traits, source = "fishbase")
+#> 19 herbivores (diet_items: 5, feeding_type: 13, trophic_level: 1).
+traits_diet[xor(traits$TrophicLevel < 2.4, traits_diet$Herbivore),
+            c("TrophicLevel", "Herbivore", "Herbivore_source")]
+#>                             TrophicLevel Herbivore Herbivore_source
+#> Chelon_labrosus                     2.59      TRUE       diet_items
+#> Coryphopterus_glaucofraenum         2.67      TRUE     feeding_type
+#> Acanthostracion_polygonium          2.03     FALSE       diet_items
+```
+
+The rest of this vignette keeps the default classification.
+
+### Depth
+
+Species of the same water-column category can still live hundreds of metres
+apart. Depth ranges come from FishBase (`add_depth_range()`) or from the
+`df_depth_env` table shipped with the package. Links between taxa that never
+meet are then removed; `depth_tolerance` allows a gap in metres:
+
+```{r depth}
+traits_depth <- add_depth_range(traits, source = "df_depth_env")
+mw_depth <- suppressMessages(suppressWarnings(
+  correct_metaweb_fish(mw, traits_depth, depth_overlap = TRUE)
+))
+sum(attr(mw_depth, "corrections")$correction == "depth")
+```
+
+Depth ranges are those of the whole species, across life stages and regions,
+so only clearly separated species lose their links. The rest of this vignette
+keeps the default corrections.
+
+### Checking the corrections
+
+`compare_metawebs()` lists what the corrections changed, so you can check it by
+hand. Each species pair appears once, with both directions of the interaction:
+
+* `taxon_1`, `taxon_2`: the two taxa;
+* `t1_eats_t2_before`, `t1_eats_t2_after`, `t1_eats_t2_correction`,
+  `t1_eats_t2_source`: the probability that taxon 1 eats taxon 2 before and
+  after correction, the correction that changed it (`NA` if unchanged) and the
+  data it was based on (e.g. `trophic_level` or `diet_items` for herbivory,
+  `DemersPelag` for water position);
+* the same four `t2_eats_t1_*` columns for the other direction (`NA` for
+  cannibalism, where both taxa are the same);
+* the traits of both taxa (`t1_*`, `t2_*`).
+
+Pairs are sorted by the highest probability, before correction, among their
+changed links, so the most likely links that were removed come first. Changed
+links below 0.01 both before and after are hidden (`min_proba = 0` shows them
+all).
+
+```{r corrections-pairs}
+changes <- compare_metawebs(mw, mw_corr, traits)
+nrow(changes)
+# number of changed links per correction and source
+counts <- as.data.frame(table(
+  correction = c(changes$t1_eats_t2_correction, changes$t2_eats_t1_correction),
+  source = c(changes$t1_eats_t2_source, changes$t2_eats_t1_source)
+))
+counts[counts$Freq > 0, ]
+
+shown <- head(changes[, 1:10])
+shown[, c(3, 4, 7, 8)] <- signif(shown[, c(3, 4, 7, 8)], 2)
+shown
+```
+
+Use `level = "link"` instead for one row per direction.
+
+With `level = "taxon"` you get one row per taxon, with how much each
+correction changed its prey. For a probability metaweb these are expected
+numbers of prey:
+
+```{r corrections-taxa}
+by_taxon <- compare_metawebs(mw, mw_corr, traits, level = "taxon")
+cols <- c("prey_before", "prey_after", grep("^prey_change_", names(by_taxon), value = TRUE))
+cbind(taxon = by_taxon$taxon, round(by_taxon[, cols], 1))[
+  by_taxon$taxon %in% c("Muraena_helena", "Sarpa_salpa", "Tripterygion_delaisi"), ]
+```
+
+To review the changes in a spreadsheet, save the table with
+`write.csv(changes, "metaweb_corrections.csv", row.names = FALSE)`.
+`compare_metawebs()` works on any two metawebs, e.g. before and after
+binarisation (`compare_metawebs(mw_corr, mw_bin)`); changes that were not made
+by `correct_metaweb_fish()` have no `correction`.
+
+## 7. Choose a threshold and binarise
+
+Network indices need presence/absence links, so the probabilities must be
+thresholded. `get_proba()` tries thresholds from 0.1 to 0.995. For each one it
+computes the trophic levels implied by the binary web and sums their absolute
+differences from the FishBase trophic levels. It keeps the threshold with the
+smallest error:
+
+```{r threshold, fig.height = 4.5}
+threshold <- get_proba(mw_corr, traits)
+threshold
+```
+
+`correct_metaweb_proba()` runs the same search and returns the binary metaweb.
+You can also give it a `threshold` directly, for example to test how sensitive
+your results are to this choice.
+
+```{r binarise, fig.show = "hide"}
+mw_bin <- correct_metaweb_proba(mw_corr, traits)
+sum(mw_bin)  # number of links
+```
+
+The trophic-level criterion only constrains where taxa sit in the web on
+average, not which links exist. When observed links are available,
+`get_proba(method = "tss")` instead picks the threshold that best separates
+observed links from other pairs (maximum true skill statistic, see below).
+
+## 8. Validating the metaweb
+
+How well does the metaweb predict who eats whom? Two complementary checks:
+
+**1. Cross-validation of the size model.** The interaction data used for
+calibration can't validate it directly. `cv_size_model()` leaves out one
+study at a time (the `reference` column), calibrates the model on the other
+studies and predicts the left-out one. Leaving out whole studies, rather than
+random records, keeps near-identical records of the same study out of the
+calibration.
+
+Each predator of the left-out study is paired with every prey species of the
+data (`prey_pool = "all"`). Pairs never recorded count as non-links. These are
+pseudo-absences, so the scores are conservative. Most studies of
+`df_interaction_fish` describe the diet of a single predator, so the stricter
+`prey_pool = "study"` (only prey recorded in the left-out study) leaves them
+with no non-links to score. The in-sample AUC (model calibrated on all
+studies) shows how much the calibration overfits. Calibration runs once per
+study, so this takes a few minutes:
+
+```{r cv, eval = FALSE}
+set.seed(1)
+cv <- cv_size_model(max_time = 30)
+cv$folds[, c("group", "n_predators", "n_links", "AUC", "AUC_in_sample", "TSS")]
+#>                        group n_predators n_links  AUC AUC_in_sample   TSS
+#> 1         Chase, B.C. (2002)           1      11 0.89          0.90 0.667
+#> 2       Pinnegar et al. 2003          28     178 0.57          0.69 0.199
+#> 3      Pusineri et al (2005)           1       6 0.49          0.49 0.096
+#> 4    Chancollon et al (2006)           1      13 0.58          0.58 0.297
+#> 5 Barraclough (1967) Rep 922           7       8 0.72          0.76 0.331
+#> 6  Stergiou & Fourtouni 1991           1      21 0.64          0.64 0.292
+#> 7       Kellermann, A. 1987.           1       0   NA            NA    NA
+#> 8       Kellermann, A. 1989.           1       4   NA            NA    NA
+cv$overall
+#>           model   AUC   TSS threshold
+#> 1 out_of_sample 0.626 0.263     0.150
+#> 2     in_sample 0.706 0.337     0.375
+```
+
+An AUC of 0.5 is no better than chance and 1 is perfect. Body size alone
+separates a predator's prey from other prey only moderately, and less well
+for studies it was not calibrated on. This is why the ecological corrections
+and diet data matter.
+
+**2. Validation of the corrected metaweb** against independent links, with
+`validate_metaweb()`. Links can come from your own stomach-content data, GloBI,
+or FishBase diet records (`get_diet_links()`). It reports AUC, sensitivity,
+specificity and TSS, and, for each predator, the observed prey the metaweb
+misses:
+
+```{r validate, eval = FALSE}
+links <- get_diet_links(rownames(mw_corr))
+#> 49 links for 16 predators found in FishBase diet records.
+val <- validate_metaweb(mw_corr, links)
+val$summary[, c("n_predators", "n_links", "AUC", "sensitivity", "specificity", "TSS")]
+#>   n_predators n_links  AUC sensitivity specificity  TSS
+#> 1          15      48 0.56        0.44         0.7 0.14
+head(val$per_predator[, c("predator", "n_observed", "n_hits", "missed")], 3)
+#>                  predator n_observed n_hits                                                                  missed
+#> 1        Scorpaena_porcus          4      0 Chromis_chromis, Symphodus_tinca, Mullus_surmuletus, Symphodus_roissali
+#> 2        Scorpaena_scrofa          4      0     Serranus_scriba, Diplodus_puntazzo, Diplodus_annularis, Boops_boops
+#> 3 Cephalopholis_cruentata          3      0     Abudefduf_saxatilis, Coryphopterus_personatus, Azurina_multilineata
+
+# Threshold chosen from observed links instead of trophic levels
+mw_bin_tss <- correct_metaweb_proba(mw_corr, method = "tss", links = links)
+```
+
+Here the corrected metaweb recovers fewer than half of the FishBase links.
+`per_predator` shows where it fails: scorpionfishes and groupers. The
+corrections play no part; the size model itself gives these links low
+probabilities, because the missed prey have adult lengths close to or above
+the predator's (e.g. a 15 cm *Scorpaena porcus* eating 25 cm *Mullus
+surmuletus*). The predators most likely eat juveniles, which a single adult
+length per species can't represent. FishBase lists species-level prey for
+few fish, so this check covers only 15 of the 135 predators here: use your own
+diet data when you have them. Use
+data that were not used to build the metaweb: if herbivores were set from
+FishBase diet data, validating against FishBase diet links is not independent,
+and `validate_metaweb()` warns about it. Likewise, a threshold chosen with
+`method = "tss"` should be validated on other links.
+
+## 9. Saving the metaweb
+
+The binary metaweb is the input of the local analyses. Save it, together with
+the traits and the parameters, so the local analyses use exactly this
+version:
+
+```{r save, eval = FALSE}
+saveRDS(list(metaweb = mw_bin, traits = traits, pars = pars), "metaweb_obis.rds")
+```
+
+The metaweb built here is shipped with the package as `metaweb_obis`, which
+the local food-web vignette uses:
+
+```{r shipped}
+all.equal(mw_bin, metaweb_obis, check.attributes = FALSE)
+```
+
+Continue with `vignette("local-food-webs", package = "metawebr")`.
+
+## References
+
+* Gravel, D., Poisot, T., Albouy, C., Velez, L. & Mouillot, D. (2013). Inferring
+  food web structure from predator–prey body size relationships.
+  *Methods in Ecology and Evolution*, 4, 1083–1090.
+* Albouy, C. et al. (2019). The marine fish food web is globally connected.
+  *Nature Ecology & Evolution*, 3, 1153–1161.
+* Froese, R. & Pauly, D. (eds.). FishBase. World Wide Web electronic publication, www.fishbase.org.
+* Rabosky, D.L. et al. (2018). An inverse latitudinal gradient in speciation
+  rate for marine fishes. *Nature*, 559, 392–395.
+* Stekhoven, D.J. & Bühlmann, P. (2012). MissForest: non-parametric missing
+  value imputation for mixed-type data. *Bioinformatics*, 28, 112–118.
+* OBIS. Ocean Biodiversity Information System. Intergovernmental Oceanographic
+  Commission of UNESCO. www.obis.org.
