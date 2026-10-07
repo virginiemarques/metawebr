@@ -41,7 +41,8 @@ Suggests:
     PVR,
     rmarkdown,
     testthat (>= 3.0.0),
-    visNetwork
+    visNetwork,
+    worrms
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3

@@ -29,3 +29,41 @@ toy_sites <- function() {
   )
   make_species_station_matrix(det, station_col = "station", species_col = "taxon", count_col = "count")
 }
+
+# Small FishBase tables, as returned by fb_table(), for offline tests
+fake_fb_tables <- function() {
+  taxa <- data.frame(
+    SpecCode = 1:6,
+    Species = c("Gadus morhua", "Chelon auratus", "Sarpa salpa", "Diplodus sargus",
+                "Diplodus vulgaris", "Clupea harengus"),
+    Genus = c("Gadus", "Chelon", "Sarpa", "Diplodus", "Diplodus", "Clupea"),
+    Family = c("Gadidae", "Mugilidae", "Sparidae", "Sparidae", "Sparidae", "Clupeidae")
+  )
+  list(
+    taxa = taxa,
+    species = data.frame(SpecCode = 1:6, CommonLength = c(100, 40, 30, 25, 22, 30), Length = NA,
+                         DemersPelag = "benthopelagic",
+                         DepthRangeShallow = c(150, 0, 0, 0, 0, 0),
+                         DepthRangeDeep = c(600, 20, 20, 50, 160, 300)),
+    estimate = data.frame(SpecCode = 1:6, Troph = c(4.4, 2.4, 2.0, 3.1, 3.2, 3.2)),
+    synonyms = data.frame(
+      synonym = c("Liza aurata", "Diplodus sargus", "Sargus vulgaris", "Sargus vulgaris", "Gadus callarias"),
+      Status = c("synonym", "misapplied name", "synonym", "synonym", "synonym"),
+      SpecCode = c(2L, 5L, 4L, 5L, 1L)
+    ),
+    fooditems = data.frame(
+      SpecCode = c(rep(2L, 4), rep(3L, 3), 1L, 1L, 1L, 6L),
+      FoodI = c("detritus", "plants", "plants", "zoobenthos", "plants", "plants", "zoobenthos",
+                "nekton", "nekton", "zoobenthos", "zooplankton"),
+      PreySpecCode = c(rep(NA, 7), 6L, 4L, NA, NA)
+    ),
+    ecology = data.frame(SpecCode = c(1L, 4L, 5L),
+                         FeedingType = c("hunting macrofauna (predator)", "grazing on aquatic plants",
+                                         "variable"))
+  )
+}
+
+local_fake_fishbase <- function(env = parent.frame()) {
+  tables <- fake_fb_tables()
+  local_mocked_bindings(fb_table = function(table) tables[[table]], .env = env)
+}
