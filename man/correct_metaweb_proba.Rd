@@ -4,25 +4,35 @@
 \alias{correct_metaweb_proba}
 \title{Binarise a metaweb}
 \usage{
-correct_metaweb_proba(MW, df_traits, threshold = NULL, plot_diag = TRUE)
+correct_metaweb_proba(
+  MW,
+  df_traits = NULL,
+  threshold = NULL,
+  plot_diag = TRUE,
+  method = c("trophic_level", "tss"),
+  links = NULL
+)
 }
 \arguments{
 \item{MW}{Metaweb of interaction probabilities (prey in rows, predators in
-columns), e.g. from [correct_metaweb_fish()].}
+columns), e.g. from \code{\link[=correct_metaweb_fish]{correct_metaweb_fish()}}.}
 
-\item{df_traits}{Traits with taxon names as row names and a `TrophicLevel`
-column. Not needed when `threshold` is given.}
+\item{df_traits}{Traits with taxon names as row names and a \code{TrophicLevel}
+column, for \code{method = "trophic_level"}. Not needed when \code{threshold} is
+given.}
 
-\item{threshold}{Optional probability threshold. `NULL` (default) chooses it
-with [get_proba()].}
+\item{threshold}{Optional probability threshold. \code{NULL} (default) chooses it
+with \code{\link[=get_proba]{get_proba()}}.}
 
 \item{plot_diag}{Draw the threshold diagnostic plot?}
+
+\item{method, links}{How \code{\link[=get_proba]{get_proba()}} chooses the threshold.}
 }
 \value{
-A 0/1 matrix with the same dimensions as `MW`; links with a
-  probability >= threshold are set to 1.
+A 0/1 matrix with the same dimensions as \code{MW}; links with a
+probability >= threshold are set to 1.
 }
 \description{
 Turns interaction probabilities into 0/1 links. By default the threshold is
-chosen with [get_proba()].
+chosen with \code{\link[=get_proba]{get_proba()}}.
 }

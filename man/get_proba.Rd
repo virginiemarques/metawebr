@@ -4,23 +4,47 @@
 \alias{get_proba}
 \title{Choose the probability threshold of a metaweb}
 \usage{
-get_proba(MW, df_traits, plot_diag = TRUE)
+get_proba(
+  MW,
+  df_traits = NULL,
+  plot_diag = TRUE,
+  method = c("trophic_level", "tss"),
+  links = NULL
+)
 }
 \arguments{
 \item{MW}{Metaweb of interaction probabilities (prey in rows, predators in
-columns), e.g. from [correct_metaweb_fish()].}
+columns), e.g. from \code{\link[=correct_metaweb_fish]{correct_metaweb_fish()}}.}
 
-\item{df_traits}{Traits with taxon names as row names and a `TrophicLevel`
-column. Taxa are matched to the metaweb by name.}
+\item{df_traits}{Traits with taxon names as row names and a \code{TrophicLevel}
+column, for \code{method = "trophic_level"}. Taxa are matched to the metaweb by
+name.}
 
 \item{plot_diag}{Draw the threshold diagnostic plot?}
+
+\item{method}{\code{"trophic_level"} or \code{"tss"}.}
+
+\item{links}{For \code{method = "tss"}: observed links, a data frame with the
+columns \code{predator} and \code{prey} (see \code{\link[=validate_metaweb]{validate_metaweb()}}), e.g. from
+\code{\link[=get_diet_links]{get_diet_links()}}.}
 }
 \value{
 The selected threshold (a single number).
 }
 \description{
-Tries thresholds from 0.1 to 0.995. For each, the metaweb is binarised, the
-trophic level of every taxon is computed from the binary web, and the
-absolute differences with the observed trophic levels (`TrophicLevel`, e.g.
-from FishBase) are summed. The threshold with the smallest error is returned.
+Tries thresholds from 0.1 to 0.995 and returns the best one, by one of two
+criteria:
+}
+\details{
+\itemize{
+\item \code{method = "trophic_level"} (default): for each threshold, the metaweb is
+binarised, the trophic level of every taxon is computed from the binary
+web, and the absolute differences with the observed trophic levels
+(\code{TrophicLevel}, e.g. from FishBase) are summed. The threshold with the
+smallest error is returned. This only constrains the average position of
+taxa in the web, not which links exist.
+\item \code{method = "tss"}: the threshold maximising the true skill statistic
+(sensitivity + specificity - 1) against observed links (\code{links}), as in
+\code{\link[=validate_metaweb]{validate_metaweb()}}. Use links that were not used to build the metaweb.
+}
 }

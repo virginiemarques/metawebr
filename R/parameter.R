@@ -49,13 +49,7 @@ metaweb_mod_parameters <- function(data_path = NULL,
                                    observation_resample = 50,
                                    max_time = 1000,
                                    verbose = TRUE) {
-  if (is.null(data_path)) {
-    data_end <- metawebr::df_interaction_fish
-  } else if (is.data.frame(data_path)) {
-    data_end <- data_path
-  } else {
-    data_end <- read.csv(data_path)
-  }
+  data_end <- read_interaction_data(data_path)
   check_count(observation_resample, "observation_resample")
   data <- prepare_calibration_data(data_end, observation_resample)
 
