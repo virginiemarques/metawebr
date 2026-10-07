@@ -59,3 +59,20 @@
 #' @source FishBase (Froese, R. & Pauly, D., eds.), retrieved with rfishbase
 #'   5.0.1 on 14 September 2026.
 "df_traits_obis"
+
+#' Example binary metaweb of the species in df_presence_obis
+#'
+#' The metaweb built in `vignette("metaweb", package = "metawebr")`, stored so
+#' that `vignette("local-food-webs", package = "metawebr")` and examples can
+#' start from it: niche model calibrated on [df_interaction_fish], traits from
+#' [df_traits_obis] cleaned with [clean_traits()], default corrections of
+#' [correct_metaweb_fish()], and binarisation at the threshold chosen by
+#' [get_proba()] from FishBase trophic levels. Built by
+#' `data-raw/metaweb_obis.R`.
+#'
+#' @format A 137 x 137 binary matrix with prey in rows and predators in
+#'   columns: 135 species and the `PrimaryProducer` and `SecondaryProducer`
+#'   nodes. `metaweb_obis[i, j] == 1` when taxon `j` eats taxon `i`. The
+#'   attribute `threshold` holds the probability threshold used.
+#' @seealso [df_presence_obis] for the sites where these species occur.
+"metaweb_obis"
