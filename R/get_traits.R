@@ -91,20 +91,37 @@ warn_not_found <- function(taxa) {
 }
 
 # One row per FishBase species with taxonomy and the traits used by the package
+# (tables read through the cache, see fb_table())
 fishbase_traits_table <- function() {
-  taxa <- as.data.frame(rfishbase::load_taxa())[, c("SpecCode", "Species", "Genus", "Family")]
-  species <- as.data.frame(rfishbase::species())[, c("SpecCode", "CommonLength", "Length", "DemersPelag")]
-  estimate <- as.data.frame(rfishbase::estimate())[, c("SpecCode", "Troph")]
+  taxa <- fb_table("taxa")[, c("SpecCode", "Species", "Genus", "Family")]
+  species <- fb_table("species")[, c("SpecCode", "CommonLength", "Length", "DemersPelag",
+                                     "DepthRangeShallow", "DepthRangeDeep")]
+  estimate <- fb_table("estimate")[, c("SpecCode", "Troph")]
 
   info <- merge(taxa, species, by = "SpecCode", all.x = TRUE)
   info <- merge(info, estimate, by = "SpecCode", all.x = TRUE)
 
-  data.frame(Species = gsub(" ", "_", info$Species),
+  data.frame(SpecCode = info$SpecCode,
+             Species = gsub(" ", "_", info$Species),
              Genus = info$Genus,
              Family = info$Family,
              CommonLengthEstim = ifelse(is.na(info$CommonLength), 0.6 * info$Length, info$CommonLength),
              TrophicLevel = info$Troph,
-             DemersPelag = info$DemersPelag)
+             DemersPelag = info$DemersPelag,
+             DepthMin = info$DepthRangeShallow,
+             DepthMax = info$DepthRangeDeep)
+}
+
+# FishBase species codes making up each taxon (species, genus or family name),
+# as a list named by taxon; empty for taxa unknown to FishBase
+taxon_spec_codes <- function(taxa, info = fishbase_traits_table()) {
+  taxa <- gsub(" ", "_", taxa)
+  lapply(setNames(taxa, taxa), function(x) {
+    codes <- info$SpecCode[info$Species == x]
+    if (length(codes) == 0) codes <- info$SpecCode[info$Genus %in% x]
+    if (length(codes) == 0) codes <- info$SpecCode[info$Family %in% x]
+    codes
+  })
 }
 
 # Traits of `taxa` at a taxonomic `level` (a column of `info`): mean length and

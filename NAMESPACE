@@ -2,9 +2,11 @@
 
 export(apply_model_metaweb)
 export(clean_traits)
+export(clear_fishbase_cache)
 export(compare_metawebs)
 export(correct_metaweb_fish)
 export(correct_metaweb_proba)
+export(fishbase_cache_info)
 export(get_fig_eval)
 export(get_indic_cells)
 export(get_indic_null)
